@@ -50,11 +50,11 @@
   ];
 
   var LAYERS = [
-    { id: 'L0', label: '概念没懂' },
-    { id: 'L1', label: '方法想不到' },
-    { id: 'L2', label: '算错了' },
-    { id: 'L3', label: '看错题漏条件' },
-    { id: 'L4', label: '会但没时间' }
+    { id: 'L0', label: '概念没懂', hint: '定义、公式没记住' },
+    { id: 'L1', label: '方法想不到', hint: '知道考什么，但不知从哪下手' },
+    { id: 'L2', label: '算错了', hint: '思路对，数字算错了' },
+    { id: 'L3', label: '看错题漏条件', hint: '漏了定义域、范围、单位' },
+    { id: 'L4', label: '会但没时间', hint: '会做，但来不及写完' }
   ];
 
   var STAGE_LABELS = {
@@ -1572,7 +1572,59 @@
       badges.appendChild(el('span', 'badge-chip' + (badge.unlocked ? ' is-on' : ''), badge.label));
     });
     card.appendChild(badges);
+
+    if (status.todayCount < status.goal) {
+      var cta = el('button', 'btn btn-primary streak-cta',
+        '开始今天的 ' + (status.goal - status.todayCount) + ' 题');
+      cta.type = 'button';
+      cta.addEventListener('click', startTodayPractice);
+      card.appendChild(cta);
+    }
     return card;
+  }
+
+  /* 今日开练：优先到期复习卡，其次挑权重最高、练得最少的考点 */
+  function startTodayPractice() {
+    if (!data || !Array.isArray(data.items) || !data.items.length) {
+      showToast('题库还在加载，稍等一下');
+      return;
+    }
+    var queue = dueQueue();
+    var items = [];
+    var i;
+    for (i = 0; i < queue.length && items.length < 5; i += 1) {
+      var picked = pickReviewItem(queue[i]);
+      if (picked) {
+        items.push(picked);
+      }
+    }
+    if (items.length) {
+      openQuiz(items[0].kpId, { items: items, returnView: 'today' });
+      return;
+    }
+
+    var bestKp = '';
+    var bestScore = -1e9;
+    var kps = data.knowledge || [];
+    for (i = 0; i < kps.length; i += 1) {
+      var done = 0;
+      for (var h = 0; h < state.history.length; h += 1) {
+        if (state.history[h].kpId === kps[i].id) {
+          done += 1;
+        }
+      }
+      var score = (kps[i].weight || 0) * 10 - done;
+      if (score > bestScore) {
+        bestScore = score;
+        bestKp = kps[i].id;
+      }
+    }
+    var batch = bestKp ? pickPracticeItems(bestKp, 5) : [];
+    if (!batch.length) {
+      showToast('暂时没有可练的题');
+      return;
+    }
+    openQuiz(bestKp, { items: batch, returnView: 'today' });
   }
 
   function renderToday() {
@@ -2989,6 +3041,11 @@
     }
 
     quizBody.appendChild(resultWrap);
+    if (resultWrap.scrollIntoView) {
+      window.setTimeout(function () {
+        resultWrap.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }, 80);
+    }
   }
 
   function renderCorrect(item, resultWrap) {
@@ -3018,8 +3075,12 @@
     var saved = { done: false };
 
     LAYERS.forEach(function (layer) {
-      var btn = el('button', 'layer-btn', layer.label);
+      var btn = el('button', 'layer-btn');
       btn.type = 'button';
+      btn.appendChild(el('span', 'layer-btn-label', layer.label));
+      if (layer.hint) {
+        btn.appendChild(el('span', 'layer-btn-hint', layer.hint));
+      }
       btn.addEventListener('click', function () {
         if (saved.done) {
           return;
@@ -3103,8 +3164,12 @@
 
     var layerList = el('div', 'layer-list');
     LAYERS.forEach(function (layer) {
-      var btn = el('button', 'layer-btn', layer.label);
+      var btn = el('button', 'layer-btn');
       btn.type = 'button';
+      btn.appendChild(el('span', 'layer-btn-label', layer.label));
+      if (layer.hint) {
+        btn.appendChild(el('span', 'layer-btn-hint', layer.hint));
+      }
       btn.addEventListener('click', function () {
         finishRecord(false, layer.id, layer.label);
       });

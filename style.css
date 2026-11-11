@@ -1858,3 +1858,27 @@ sub.math-script {
     gap: 2px;
   }
 }
+
+/* ---------- 错因按钮：主标签 + 白话说明 ---------- */
+.layer-btn {
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.layer-btn-label {
+  display: block;
+  font-weight: 600;
+}
+
+.layer-btn-hint {
+  display: block;
+  margin-top: 3px;
+  font-size: 11.5px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.streak-cta {
+  width: 100%;
+  margin-top: 12px;
+}
