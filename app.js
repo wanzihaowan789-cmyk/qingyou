@@ -3263,7 +3263,8 @@
     quizBody.appendChild(resultWrap);
     if (resultWrap.scrollIntoView) {
       window.setTimeout(function () {
-        resultWrap.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        /* 用瞬间定位：平滑滚动会让后续点击落在移动中的元素上 */
+        resultWrap.scrollIntoView({ block: 'nearest' });
       }, 80);
     }
   }
