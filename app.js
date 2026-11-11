@@ -76,7 +76,10 @@
     masteryRecordId: null,
     masteryPassed: false,
     reviewRecordId: null,
-    hintUsed: false
+    hintUsed: false,
+    startedAt: 0,
+    elapsedMs: 0,
+    lastAnswer: ''
   };
 
   function el(tag, className, text) {
@@ -340,6 +343,7 @@
       candidates: answerCandidates,
       correct: isAnswerCorrect
     };
+    window.QY_DIAGNOSE = diagnoseReasons;
   }
 
   function pad2(value) {
@@ -1067,7 +1071,12 @@
       at: at,
       correct: !!correct,
       layer: correct ? '' : layer,
-      hintUsed: !!quiz.hintUsed
+      hintUsed: !!quiz.hintUsed,
+      /* 归因用的行为证据：耗时、原始答案、题型与难度 */
+      ms: quiz.elapsedMs || 0,
+      answer: quiz.lastAnswer || '',
+      qtype: item.type || 'fill',
+      qlevel: item.level || 1
     });
 
     if (!wasUnlocked && isLevelUnlocked(item.kpId)) {
@@ -1832,6 +1841,11 @@
     host.textContent = '';
 
     host.appendChild(buildStreakCard(buildLearningStatus()));
+
+    var attribution = diagnoseReasons();
+    if (attribution.ready && attribution.top) {
+      host.appendChild(buildTodayReason(attribution.top));
+    }
 
     if (state.records.length || state.history.length) {
       var todayDiagnosis = buildTodayDiagnosis();
@@ -2688,6 +2702,458 @@
     return stats;
   }
 
+  /* ============================================================
+     成绩归因：从行为证据反推"为什么差"，按影响面排序
+     不依赖学生自报错因，自报只作为辅助信号
+     ============================================================ */
+
+  var CONDITION_RE = /定义域|值域|取值范围|范围|条件|恒成立|存在|唯一|至少|至多/;
+
+  /* 把答案转成数值，支持分数与负号 */
+  function answerToNumber(text) {
+    var raw = String(text === null || text === undefined ? '' : text)
+      .replace(/−/g, '-').replace(/\s+/g, '');
+    var match = /^(-)?(\d+(?:\.\d+)?)(?:\/(\d+(?:\.\d+)?))?$/.exec(raw);
+    if (!match) {
+      return null;
+    }
+    var value = parseFloat(match[2]);
+    if (match[3]) {
+      var denominator = parseFloat(match[3]);
+      if (!denominator) {
+        return null;
+      }
+      value = value / denominator;
+    }
+    return match[1] ? -value : value;
+  }
+
+  /* 算错但接近：差 1~2，或者正负号搞反 */
+  function isNearMiss(item, userAnswer) {
+    if (!item || ['choice', 'multi', 'judge'].indexOf(item.type) !== -1) {
+      return false;
+    }
+    var expected = answerToNumber(item.answer);
+    var actual = answerToNumber(userAnswer);
+    if (expected === null || actual === null || expected === actual) {
+      return false;
+    }
+    if (Math.abs(expected + actual) < 1e-9) {
+      return true;
+    }
+    return Math.abs(expected - actual) <= 2;
+  }
+
+  function emptyAgg() {
+    return {
+      total: 0, correct: 0,
+      hintUsed: 0, hintWrong: 0, hintRight: 0,
+      nearMiss: 0,
+      condTotal: 0, condWrong: 0, plainTotal: 0, plainWrong: 0,
+      conceptTotal: 0, conceptWrong: 0,
+      fillTotal: 0, fillWrong: 0,
+      slowCorrect: 0, times: [],
+      level1: { total: 0, correct: 0 },
+      level2: { total: 0, correct: 0 }
+    };
+  }
+
+  function diagnoseReasons() {
+    var history = state.history || [];
+    var result = { ready: false, total: history.length, reasons: [] };
+
+    var overall = emptyAgg();
+    var byKp = {};
+
+    for (var i = 0; i < history.length; i += 1) {
+      var entry = history[i];
+      var item = findItem(entry.itemId);
+      if (!item) {
+        continue;
+      }
+      var agg = byKp[item.kpId] || (byKp[item.kpId] = emptyAgg());
+      var level = entry.qlevel || item.level || 1;
+      var type = entry.qtype || item.type || 'fill';
+      var isConcept = level === 1 && (type === 'choice' || type === 'judge');
+      var isFill = type === 'fill' || type === 'solve';
+
+      [overall, agg].forEach(function (bucket) {
+        bucket.total += 1;
+        if (entry.correct) {
+          bucket.correct += 1;
+        }
+        if (entry.hintUsed) {
+          bucket.hintUsed += 1;
+          if (entry.correct) {
+            bucket.hintRight += 1;
+          } else {
+            bucket.hintWrong += 1;
+          }
+        }
+        if (isConcept) {
+          bucket.conceptTotal += 1;
+          if (!entry.correct) {
+            bucket.conceptWrong += 1;
+          }
+        }
+        if (isFill) {
+          bucket.fillTotal += 1;
+          if (!entry.correct) {
+            bucket.fillWrong += 1;
+          }
+        }
+        if (level <= 1) {
+          bucket.level1.total += 1;
+          if (entry.correct) {
+            bucket.level1.correct += 1;
+          }
+        } else {
+          bucket.level2.total += 1;
+          if (entry.correct) {
+            bucket.level2.correct += 1;
+          }
+        }
+        if (typeof entry.ms === 'number' && entry.ms > 0) {
+          bucket.times.push(entry.ms);
+          if (entry.correct && entry.ms > 90000) {
+            bucket.slowCorrect += 1;
+          }
+        }
+        if (!entry.correct && isNearMiss(item, entry.answer)) {
+          bucket.nearMiss += 1;
+        }
+        if (CONDITION_RE.test(String(item.stem || ''))) {
+          bucket.condTotal += 1;
+          if (!entry.correct) {
+            bucket.condWrong += 1;
+          }
+        } else {
+          bucket.plainTotal += 1;
+          if (!entry.correct) {
+            bucket.plainWrong += 1;
+          }
+        }
+      });
+    }
+
+    if (overall.total < 8) {
+      return result;
+    }
+    result.ready = true;
+
+    function rate(part, whole) {
+      return whole > 0 ? part / whole : 0;
+    }
+
+    /* ---- 影响面：低掌握考点的权重和 ---- */
+    var lowKpWeight = 0;
+    var lowKpIds = [];
+    Object.keys(byKp).forEach(function (kpId) {
+      var agg = byKp[kpId];
+      if (agg.total >= 2 && rate(agg.correct, agg.total) < 0.4) {
+        lowKpWeight += kpWeight(kpId);
+        lowKpIds.push({ kpId: kpId, agg: agg, weight: kpWeight(kpId) });
+      }
+    });
+    lowKpIds.sort(function (a, b) { return b.weight - a.weight; });
+
+    /* ---- 逾期与遗忘 ---- */
+    var today = formatDate(new Date());
+    var overdue = 0;
+    var overdueDays = 0;
+    var lapsed = 0;
+    for (i = 0; i < state.records.length; i += 1) {
+      var record = state.records[i];
+      if (record.dueAt && record.dueAt < today && record.stage !== 'mastered') {
+        overdue += 1;
+        var gap = Math.round((new Date(today) - new Date(record.dueAt)) / 86400000);
+        if (gap > 0) {
+          overdueDays += gap;
+        }
+      }
+      if (record.stage === 'lapsed') {
+        lapsed += 1;
+      }
+    }
+
+    var reasons = [];
+
+    /* 1. 概念没建立 */
+    var conceptWrongRate = rate(overall.conceptWrong, overall.conceptTotal);
+    /* 低正确率考点只有在概念题本身也错时才归因到“概念”，否则会冤枉成概念问题 */
+    var conceptScore = overall.hintWrong * 8 + overall.conceptWrong * 3 +
+      (conceptWrongRate > 0.5 ? lowKpWeight * 4 : 0);
+    if (conceptScore > 0) {
+      var conceptEvidence = [];
+      if (overall.hintWrong > 0) {
+        conceptEvidence.push(overall.hintWrong + ' 道题看了提示（提示给的是概念要点）还是错');
+      }
+      if (overall.conceptWrong > 0) {
+        conceptEvidence.push('概念判断类题目错了 ' + overall.conceptWrong + ' 道');
+      }
+      if (conceptWrongRate > 0.5 && lowKpIds.length) {
+        conceptEvidence.push('有 ' + lowKpIds.length + ' 个考点连概念判断都做不对：' +
+          lowKpIds.slice(0, 3).map(function (row) { return kpName(row.kpId); }).join('、'));
+      }
+      if (conceptEvidence.length) reasons.push({
+        key: 'concept',
+        title: '概念没建立',
+        score: conceptScore,
+        evidence: conceptEvidence,
+        impactWeight: lowKpWeight,
+        kpIds: lowKpIds.slice(0, 3).map(function (row) { return row.kpId; }),
+        action: '概念卡补洞',
+        advice: '先把这几张概念卡看懂，再做同考点的基础题。概念没立住时刷题只会重复犯错。'
+      });
+    }
+
+    /* 2. 方法不会迁移 */
+    var lv1Rate = rate(overall.level1.correct, overall.level1.total);
+    var lv2Rate = rate(overall.level2.correct, overall.level2.total);
+    var methodScore = overall.hintRight * 5;
+    if (overall.level2.total >= 2 && overall.level1.total >= 3) {
+      methodScore += Math.max(0, lv1Rate - lv2Rate) * 45;
+    }
+    if (methodScore > 0) {
+      var methodEvidence = [];
+      if (overall.hintRight > 0) {
+        methodEvidence.push('有 ' + overall.hintRight + ' 道题看了提示就能做对，说明差的不是知识而是“想到方法”');
+      }
+      if (overall.level2.total > 0) {
+        methodEvidence.push('基础题正确率 ' + Math.round(lv1Rate * 100) + '%，中档题 ' +
+          Math.round(lv2Rate * 100) + '%');
+      }
+      if (methodEvidence.length) reasons.push({
+        key: 'method',
+        title: '方法不会迁移',
+        score: methodScore,
+        evidence: methodEvidence,
+        impactWeight: overall.level2.total,
+        kpIds: [],
+        action: '看例题再练变式',
+        advice: '重点看每道例题的第一步“为什么想到这一步”，然后把同考点的中档题做 2 道。'
+      });
+    }
+
+    /* 3. 计算不稳 */
+    var fillRate = rate(overall.fillWrong, overall.fillTotal);
+    var conceptRate = rate(overall.conceptWrong, overall.conceptTotal);
+    var calcScore = overall.nearMiss * 8;
+    if (overall.fillTotal >= 3 && conceptRate < fillRate) {
+      calcScore += (fillRate - conceptRate) * 40;
+    }
+    if (calcScore > 0) {
+      var calcEvidence = [];
+      if (overall.nearMiss > 0) {
+        calcEvidence.push(overall.nearMiss + ' 道题的答案和正确值只差一点（差 1~2 或正负号写反）');
+      }
+      if (overall.fillTotal > 0 && conceptRate < fillRate) {
+        calcEvidence.push('概念题错得少，但填空计算题错得多');
+      }
+      if (calcEvidence.length) reasons.push({
+        key: 'calc',
+        title: '计算不稳',
+        score: calcScore,
+        evidence: calcEvidence,
+        impactWeight: overall.fillWrong,
+        kpIds: [],
+        action: '放慢算，写步骤',
+        advice: '思路是对的，丢分在最后一步。做题时把每一步写下来，别跳步，算完回头检查符号。'
+      });
+    }
+
+    /* 4. 审题漏条件 */
+    var condRate = rate(overall.condWrong, overall.condTotal);
+    var plainRate = rate(overall.plainWrong, overall.plainTotal);
+    var readScore = Math.max(0, condRate - plainRate) * 45 + overall.condWrong * 2;
+    if (readScore > 0) {
+      var readEvidence = [];
+      if (overall.condTotal > 0 && condRate > plainRate) {
+        readEvidence.push('带条件（定义域、范围、存在性）的题错误率 ' + Math.round(condRate * 100) +
+          '%，不带条件的题 ' + Math.round(plainRate * 100) + '%');
+      }
+      reasons.push({
+        key: 'read',
+        title: '审题漏条件',
+        score: readScore,
+        evidence: readEvidence,
+        impactWeight: overall.condWrong,
+        kpIds: [],
+        action: '圈关键词再动笔',
+        advice: '读题时先把“定义域”“范围”“恒成立”这些词圈出来，再做。很多题不是不会，是漏了条件。'
+      });
+    }
+
+    /* 5. 复习不及时 */
+    var reviewScore = overdue * 4 + overdueDays * 1.5;
+    if (reviewScore > 0) {
+      reasons.push({
+        key: 'review',
+        title: '复习没跟上',
+        score: reviewScore,
+        evidence: ['有 ' + overdue + ' 道题过了复习时间还没做，最长逾期 ' +
+          Math.round(overdueDays / Math.max(1, overdue)) + ' 天'],
+        impactWeight: overdue,
+        kpIds: [],
+        action: '今天先清到期题',
+        advice: '错过的题不复习会掉回“新错题”。今天先按到期顺序把这些题过一遍。'
+      });
+    }
+
+    /* 6. 熟练度不够 */
+    var slowScore = overall.slowCorrect * 5 + lapsed * 3;
+    if (slowScore > 0) {
+      var speedEvidence = [];
+      if (overall.slowCorrect > 0) {
+        speedEvidence.push('有 ' + overall.slowCorrect + ' 道题做对了但花了 90 秒以上');
+      }
+      if (lapsed > 0) {
+        speedEvidence.push('有 ' + lapsed + ' 个考点复习后再次掉回错题');
+      }
+      reasons.push({
+        key: 'speed',
+        title: '熟练度不够',
+        score: slowScore,
+        evidence: speedEvidence,
+        impactWeight: lapsed,
+        kpIds: [],
+        action: '重复练到快',
+        advice: '会做但慢，考试照样来不及。同一考点的题练到能快速写出步骤为止。'
+      });
+    }
+
+    reasons.sort(function (a, b) { return b.score - a.score; });
+
+    /* 只有明显高于其他原因时才叫“主因” */
+    var top = reasons[0];
+    var second = reasons[1];
+    reasons.forEach(function (reason, index) {
+      if (index === 0) {
+        reason.level = 'primary';
+        reason.levelLabel = '主因';
+      } else if (index <= 2) {
+        reason.level = 'secondary';
+        reason.levelLabel = '次因';
+      } else {
+        reason.level = 'minor';
+        reason.levelLabel = '';
+      }
+      reason.share = top && top.score > 0 ? Math.round(reason.score / top.score * 100) : 0;
+    });
+    if (top && second && top.score < second.score * 1.25) {
+      top.level = 'joint';
+      top.levelLabel = '并列主因';
+    }
+
+    result.reasons = reasons;
+    result.top = reasons[0] || null;
+    return result;
+  }
+
+  /* ---------- 归因报告 UI ---------- */
+  function runReasonAction(reason) {
+    if (reason.key === 'concept' || reason.key === 'method') {
+      switchView('cards');
+      cardSearch = reason.kpIds && reason.kpIds.length ? kpName(reason.kpIds[0]) : '';
+      renderCards();
+      showToast('已按考点筛选，先看这张概念卡');
+      return;
+    }
+    if (reason.key === 'review') {
+      switchView('today');
+      showToast('按到期顺序复习');
+      return;
+    }
+    if (reason.key === 'speed') {
+      showToast('把同考点的题练到不用想就能写出来');
+      return;
+    }
+
+    var items = [];
+    var i;
+    if (reason.key === 'read') {
+      for (i = 0; i < data.items.length && items.length < 2; i += 1) {
+        var item = data.items[i];
+        if ((item.level || 1) === 1 && CONDITION_RE.test(String(item.stem || ''))) {
+          items.push(item);
+        }
+      }
+    } else if (reason.key === 'calc') {
+      for (i = 0; i < data.items.length && items.length < 2; i += 1) {
+        var calcItem = data.items[i];
+        if ((calcItem.level || 1) === 1 &&
+            (calcItem.type === 'fill' || calcItem.type === 'solve') &&
+            !CONDITION_RE.test(String(calcItem.stem || ''))) {
+          items.push(calcItem);
+        }
+      }
+    }
+    if (!items.length) {
+      showToast('暂时没有合适的题');
+      return;
+    }
+    openQuiz(items[0].kpId, { items: items, returnView: 'profile' });
+  }
+
+  function buildAttributionCard(diag) {
+    var card = el('section', 'attribution');
+    card.appendChild(el('h2', 'attribution-title', '成绩归因'));
+    card.appendChild(el('p', 'attribution-sub',
+      '按最近的答题记录自动判断，不靠你自己猜。越靠前，影响越大。'));
+
+    if (!diag.ready) {
+      card.appendChild(el('p', 'attribution-empty',
+        '再答 ' + (8 - diag.total) + ' 道题（共 8 道）就能算出归因。'));
+      return card;
+    }
+
+    diag.reasons.slice(0, 3).forEach(function (reason, index) {
+      var block = el('div', 'reason-block' + (index === 0 ? ' is-primary' : ''));
+
+      var head = el('div', 'reason-head');
+      head.appendChild(el('span', 'reason-rank', reason.levelLabel || ('次因 ' + (index + 1))));
+      head.appendChild(el('span', 'reason-title', reason.title));
+      block.appendChild(head);
+
+      var list = el('ul', 'reason-evidence');
+      reason.evidence.forEach(function (text) {
+        list.appendChild(el('li', '', text));
+      });
+      block.appendChild(list);
+
+      block.appendChild(el('p', 'reason-advice', reason.advice));
+
+      var btn = el('button', 'btn ' + (index === 0 ? 'btn-primary' : 'btn-ghost') + ' btn-small',
+        '去补：' + reason.action);
+      btn.type = 'button';
+      btn.addEventListener('click', function () {
+        runReasonAction(reason);
+      });
+      block.appendChild(btn);
+
+      card.appendChild(block);
+    });
+
+    card.appendChild(el('p', 'attribution-foot',
+      '判定依据：提示后是否做对、题型与难度差异、答案偏差、答题耗时、复习到期情况。'));
+    return card;
+  }
+
+  function buildTodayReason(reason) {
+    var card = el('section', 'today-reason');
+    card.appendChild(el('span', 'today-reason-label', '当前最该补'));
+    card.appendChild(el('span', 'today-reason-title', reason.title));
+    card.appendChild(el('p', 'today-reason-text', reason.evidence[0] || reason.advice));
+
+    var btn = el('button', 'btn btn-ghost btn-small', '去补');
+    btn.type = 'button';
+    btn.addEventListener('click', function () {
+      runReasonAction(reason);
+    });
+    card.appendChild(btn);
+    return card;
+  }
+
   function buildReport() {
     var stats = collectBasicStats();
     var totalWeight = 0;
@@ -2795,6 +3261,7 @@
     }
 
     host.appendChild(buildProfileSwitcher());
+    host.appendChild(buildAttributionCard(diagnoseReasons()));
 
     if (!state.history.length && !state.records.length) {
       var empty = el('div', 'empty-state');
@@ -3110,6 +3577,9 @@
     quiz.selected = item.type === 'multi' ? [] : null;
     quiz.answered = false;
     quiz.hintUsed = false;
+    quiz.startedAt = Date.now();
+    quiz.elapsedMs = 0;
+    quiz.lastAnswer = '';
 
     var typeLabels = { choice: '单选', judge: '判断', multi: '多选', fill: '填空', solve: '解答' };
     var levelLabels = { 1: '基础', 2: '中档', 3: '提升' };
@@ -3245,6 +3715,8 @@
     }
 
     quiz.answered = true;
+    quiz.elapsedMs = quiz.startedAt ? Math.max(0, Date.now() - quiz.startedAt) : 0;
+    quiz.lastAnswer = userAnswer;
     renderOutcome(item, userAnswer);
   }
 
