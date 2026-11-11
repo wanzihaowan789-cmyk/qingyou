@@ -1974,3 +1974,142 @@ sub.math-script {
   background: #E9F7F0;
   color: var(--ok);
 }
+
+/* ---------- 成绩归因 ---------- */
+.attribution {
+  padding: 16px;
+  margin-bottom: 14px;
+  border-radius: var(--radius);
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+
+.attribution-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.attribution-sub {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.attribution-empty {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.reason-block {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid #E8ECF7;
+  border-radius: 12px;
+  background: #F7F9FE;
+}
+
+.reason-block.is-primary {
+  border-color: #FFE0CC;
+  background: #FFF7F2;
+}
+
+.reason-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.reason-rank {
+  flex: 0 0 auto;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #EEF1FF;
+  color: var(--brand);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.reason-block.is-primary .reason-rank {
+  background: #FFE9DD;
+  color: #C2410C;
+}
+
+.reason-title {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.reason-score {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.reason-evidence {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.reason-advice {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+
+.reason-block .btn {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.attribution-foot {
+  margin: 12px 0 0;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+/* ---------- 今日页：最该补的一条 ---------- */
+.today-reason {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  border-radius: var(--radius);
+  background: #FFF7F2;
+  border: 1px solid #FFE0CC;
+}
+
+.today-reason-label {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #FFE9DD;
+  color: #C2410C;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.today-reason-title {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.today-reason-text {
+  flex: 1 1 100%;
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.today-reason .btn {
+  margin-left: auto;
+}
