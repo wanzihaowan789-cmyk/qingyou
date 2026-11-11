@@ -1882,3 +1882,95 @@ sub.math-script {
   width: 100%;
   margin-top: 12px;
 }
+
+/* ---------- 学习档案 ---------- */
+.profile-switcher {
+  padding: 16px;
+  margin-bottom: 14px;
+  border-radius: var(--radius);
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+
+.profile-switcher-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.profile-switcher-hint {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.profile-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.profile-chip {
+  padding: 8px 16px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #FBFCFE;
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.profile-chip.is-active {
+  border-color: var(--brand);
+  background: var(--brand);
+  color: #FFFFFF;
+  font-weight: 600;
+}
+
+.profile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.profile-meta {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* ---------- 概念卡：考点掌握状态 ---------- */
+.card-kp-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.kp-status {
+  flex: 0 0 auto;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1.6;
+}
+
+.kp-status.is-todo {
+  background: #FFF1E6;
+  color: #C2410C;
+}
+
+.kp-status.is-doing {
+  background: #EEF2FF;
+  color: var(--brand);
+}
+
+.kp-status.is-done {
+  background: #E9F7F0;
+  color: var(--ok);
+}

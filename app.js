@@ -6,6 +6,7 @@
   var data = window.QY_DATA || null;
   var CUSTOM_ITEMS_KEY = 'qingyou_custom_items_v1';
   var STORAGE_KEY = 'qingyou_state_v1';
+  var PROFILES_KEY = 'qingyou_profiles_v1';
 
   var tabs = Array.prototype.slice.call(document.querySelectorAll('.tab'));
   var views = Array.prototype.slice.call(document.querySelectorAll('.view'));
@@ -401,9 +402,196 @@
     };
   }
 
+  /* === 学习档案：同一台设备多人用，进度各存各的 === */
+  var profiles = loadProfiles();
+
+  function stateKeyFor(profileId) {
+    return STORAGE_KEY + ':' + profileId;
+  }
+
+  function loadProfiles() {
+    try {
+      var raw = window.localStorage.getItem(PROFILES_KEY);
+      if (raw) {
+        var parsed = JSON.parse(raw);
+        if (parsed && Array.isArray(parsed.list) && parsed.list.length && parsed.active) {
+          return parsed;
+        }
+      }
+    } catch (error) {}
+
+    var id = 'p_' + Date.now().toString(36);
+    var fresh = {
+      active: id,
+      list: [{ id: id, name: '我的进度', createdAt: new Date().toISOString() }]
+    };
+    try {
+      /* 老版本只有一份进度，自动迁到第一个档案里 */
+      var legacy = window.localStorage.getItem(STORAGE_KEY);
+      if (legacy) {
+        window.localStorage.setItem(stateKeyFor(id), legacy);
+      }
+      window.localStorage.setItem(PROFILES_KEY, JSON.stringify(fresh));
+    } catch (error) {}
+    return fresh;
+  }
+
+  function saveProfiles() {
+    try {
+      window.localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles));
+    } catch (error) {}
+  }
+
+  function profileName(id) {
+    for (var i = 0; i < profiles.list.length; i += 1) {
+      if (profiles.list[i].id === id) {
+        return profiles.list[i].name;
+      }
+    }
+    return '未命名';
+  }
+
+  function refreshAllViews() {
+    renderToday();
+    renderCards();
+    renderBoard();
+    renderProfile();
+  }
+
+  function switchProfile(id) {
+    if (!id || id === profiles.active) {
+      return;
+    }
+    saveState();
+    profiles.active = id;
+    saveProfiles();
+    state = loadState();
+    closeQuiz();
+    refreshAllViews();
+    showToast('已切换到「' + profileName(id) + '」');
+  }
+
+  function createProfile(name) {
+    var id = 'p_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 4);
+    profiles.list.push({ id: id, name: name, createdAt: new Date().toISOString() });
+    saveProfiles();
+    switchProfile(id);
+    renderProfile();
+  }
+
+  function renameProfile(id, name) {
+    for (var i = 0; i < profiles.list.length; i += 1) {
+      if (profiles.list[i].id === id) {
+        profiles.list[i].name = name;
+      }
+    }
+    saveProfiles();
+    renderProfile();
+  }
+
+  function removeProfile(id) {
+    if (profiles.list.length <= 1) {
+      showToast('至少要保留一个档案');
+      return;
+    }
+    var kept = [];
+    for (var i = 0; i < profiles.list.length; i += 1) {
+      if (profiles.list[i].id !== id) {
+        kept.push(profiles.list[i]);
+      }
+    }
+    profiles.list = kept;
+    try {
+      window.localStorage.removeItem(stateKeyFor(id));
+    } catch (error) {}
+    if (profiles.active === id) {
+      profiles.active = kept[0].id;
+      state = loadState();
+      closeQuiz();
+    }
+    saveProfiles();
+    refreshAllViews();
+    showToast('档案已删除');
+  }
+
+  function buildProfileSwitcher() {
+    var card = el('section', 'profile-switcher');
+    card.appendChild(el('h2', 'profile-switcher-title', '学习档案'));
+    card.appendChild(el('p', 'profile-switcher-hint',
+      '同一台设备多人用，各存各的进度，互不影响。换设备用「导出数据 / 导入数据」。'));
+
+    var chips = el('div', 'profile-chips');
+    profiles.list.forEach(function (entry) {
+      var isActive = entry.id === profiles.active;
+      var chip = el('button', 'profile-chip' + (isActive ? ' is-active' : ''), entry.name);
+      chip.type = 'button';
+      chip.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+      chip.addEventListener('click', function () {
+        if (!isActive) {
+          switchProfile(entry.id);
+        }
+      });
+      chips.appendChild(chip);
+    });
+    card.appendChild(chips);
+
+    var actions = el('div', 'profile-actions');
+    var addBtn = el('button', 'btn btn-ghost btn-small', '+ 新建档案');
+    addBtn.type = 'button';
+    addBtn.addEventListener('click', function () {
+      var name = window.prompt('新档案的名字，比如「妹妹」「哥哥」', '');
+      if (name === null) {
+        return;
+      }
+      name = String(name).trim().slice(0, 12);
+      if (!name) {
+        showToast('名字不能为空');
+        return;
+      }
+      createProfile(name);
+    });
+    actions.appendChild(addBtn);
+
+    var renameBtn = el('button', 'btn btn-ghost btn-small', '重命名当前');
+    renameBtn.type = 'button';
+    renameBtn.addEventListener('click', function () {
+      var name = window.prompt('新的名字', profileName(profiles.active));
+      if (name === null) {
+        return;
+      }
+      name = String(name).trim().slice(0, 12);
+      if (!name) {
+        showToast('名字不能为空');
+        return;
+      }
+      renameProfile(profiles.active, name);
+    });
+    actions.appendChild(renameBtn);
+
+    var removeBtn = el('button', 'btn btn-ghost btn-small', '删除当前');
+    removeBtn.type = 'button';
+    removeBtn.addEventListener('click', function () {
+      if (profiles.list.length <= 1) {
+        showToast('至少要保留一个档案');
+        return;
+      }
+      if (!window.confirm('删除「' + profileName(profiles.active) + '」的进度？删除后不能恢复。')) {
+        return;
+      }
+      removeProfile(profiles.active);
+    });
+    actions.appendChild(removeBtn);
+    card.appendChild(actions);
+
+    card.appendChild(el('p', 'profile-meta',
+      '当前：' + profileName(profiles.active) + ' · ' +
+      state.records.length + ' 道错题记录 · ' + state.history.length + ' 次作答'));
+    return card;
+  }
+
   function loadState() {
     try {
-      var raw = window.localStorage.getItem(STORAGE_KEY);
+      var raw = window.localStorage.getItem(stateKeyFor(profiles.active));
       if (!raw) {
         return defaultState();
       }
@@ -489,7 +677,7 @@
 
   function saveState() {
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      window.localStorage.setItem(stateKeyFor(profiles.active), JSON.stringify(state));
       return true;
     } catch (error) {
       showToast('浏览器不允许保存数据，请检查是否禁用了本地存储');
@@ -1338,7 +1526,16 @@
     summary.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
 
     var top = el('div', 'card-summary-top');
-    top.appendChild(highlightInto(el('span', 'card-kp'), kpName(card.kpId), keyword));
+    var kpLabel = highlightInto(el('span', 'card-kp'), kpName(card.kpId), keyword);
+    var kpStatus = kpLearningStatus(card.kpId);
+    if (kpStatus) {
+      var statusWrap = el('span', 'card-kp-wrap');
+      statusWrap.appendChild(kpLabel);
+      statusWrap.appendChild(el('span', 'kp-status is-' + kpStatus.key, kpStatus.label));
+      top.appendChild(statusWrap);
+    } else {
+      top.appendChild(kpLabel);
+    }
     var summaryActions = el('div', 'card-summary-actions');
     var favoriteBtn = el('button', 'card-favorite' + (favorites[card.id] ? ' is-on' : ''), favorites[card.id] ? '已收藏' : '收藏');
     favoriteBtn.type = 'button';
@@ -1758,6 +1955,27 @@
       }
     }
     return count;
+  }
+
+  /* 概念卡上的掌握状态：待复习 > 复习中 > 已掌握 */
+  function kpLearningStatus(kpId) {
+    var best = null;
+    for (var i = 0; i < state.records.length; i += 1) {
+      var record = state.records[i];
+      if (record.kpId !== kpId) {
+        continue;
+      }
+      var column = columnOf(record.stage);
+      if (column === 'todo') {
+        return { key: 'todo', label: '待复习' };
+      }
+      if (column === 'doing') {
+        best = { key: 'doing', label: '复习中' };
+      } else if (column === 'done' && !best) {
+        best = { key: 'done', label: '已掌握' };
+      }
+    }
+    return best;
   }
 
   var BOARD_COLUMNS = [
@@ -2575,6 +2793,8 @@
       renderDataError(host);
       return;
     }
+
+    host.appendChild(buildProfileSwitcher());
 
     if (!state.history.length && !state.records.length) {
       var empty = el('div', 'empty-state');
