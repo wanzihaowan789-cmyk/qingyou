@@ -2113,3 +2113,120 @@ sub.math-script {
 .today-reason .btn {
   margin-left: auto;
 }
+
+/* ---------- 干预前后对比 ---------- */
+.intervention {
+  padding: 16px;
+  margin-bottom: 14px;
+  border-radius: var(--radius);
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+
+.intervention-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.intervention-label {
+  flex: 0 0 auto;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #E9F7F0;
+  color: var(--ok);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.intervention-title {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.intervention-meta {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.intervention-track {
+  height: 8px;
+  margin-top: 10px;
+  border-radius: 999px;
+  background: #EEF1F7;
+  overflow: hidden;
+}
+
+.intervention-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--brand);
+  transition: width 0.3s;
+}
+
+.intervention .btn {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.compare-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.compare-label {
+  flex: 0 0 52px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.compare-bar {
+  flex: 1;
+  height: 10px;
+  border-radius: 999px;
+  background: #EEF1F7;
+  overflow: hidden;
+}
+
+.compare-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+}
+
+.compare-bar-fill.is-before {
+  background: #C9D3FF;
+}
+
+.compare-bar-fill.is-after {
+  background: var(--ok);
+}
+
+.compare-bar-fill.is-worse {
+  background: #F59E0B;
+}
+
+.compare-value {
+  flex: 0 0 34px;
+  text-align: right;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.intervention-verdict {
+  margin: 10px 0 0;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.intervention-verdict.is-good {
+  color: var(--ok);
+  font-weight: 600;
+}
+
+.intervention-verdict.is-warn {
+  color: #C2410C;
+}
