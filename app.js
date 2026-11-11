@@ -344,6 +344,8 @@
       correct: isAnswerCorrect
     };
     window.QY_DIAGNOSE = diagnoseReasons;
+    window.QY_TRACK = trackIntervention;
+    window.QY_FINISH_INTERVENTION = finishIntervention;
   }
 
   function pad2(value) {
@@ -610,7 +612,9 @@
         version: 1,
         profile: parsed.profile && typeof parsed.profile === 'object' ? parsed.profile : {},
         records: Array.isArray(parsed.records) ? parsed.records : [],
-        history: Array.isArray(parsed.history) ? parsed.history : []
+        history: Array.isArray(parsed.history) ? parsed.history : [],
+        intervention: parsed.intervention && typeof parsed.intervention === 'object'
+          ? parsed.intervention : null
       };
     } catch (error) {
       return defaultState();
@@ -1078,6 +1082,8 @@
       qtype: item.type || 'fill',
       qlevel: item.level || 1
     });
+
+    trackIntervention(item, correct);
 
     if (!wasUnlocked && isLevelUnlocked(item.kpId)) {
       showToast('这个考点基础题已达标，中档题解锁了');
@@ -2837,6 +2843,7 @@
     }
 
     if (overall.total < 8) {
+      result.scores = { concept: 0, method: 0, calc: 0, read: 0, review: 0, speed: 0 };
       return result;
     }
     result.ready = true;
@@ -3047,11 +3054,21 @@
 
     result.reasons = reasons;
     result.top = reasons[0] || null;
+    result.scores = {
+      concept: conceptScore,
+      method: methodScore,
+      calc: calcScore,
+      read: readScore,
+      review: reviewScore,
+      speed: slowScore
+    };
     return result;
   }
 
   /* ---------- 归因报告 UI ---------- */
   function runReasonAction(reason) {
+    startIntervention(reason, diagnoseReasons());
+
     if (reason.key === 'concept' || reason.key === 'method') {
       switchView('cards');
       cardSearch = reason.kpIds && reason.kpIds.length ? kpName(reason.kpIds[0]) : '';
@@ -3093,6 +3110,139 @@
       return;
     }
     openQuiz(items[0].kpId, { items: items, returnView: 'profile' });
+  }
+
+  /* ============================================================
+     干预闭环：记录「补之前」基线，练满 3 题后复算「补之后」
+     ============================================================ */
+  var INTERVENTION_TARGET = 3;
+
+  function startIntervention(reason, diag) {
+    state.intervention = {
+      key: reason.key,
+      title: reason.title,
+      startedAt: new Date().toISOString(),
+      baseline: (diag && diag.scores && diag.scores[reason.key]) || 0,
+      results: [],
+      status: 'active',
+      afterScore: null
+    };
+    saveState();
+  }
+
+  function trackIntervention(item, correct) {
+    var record = state.intervention;
+    if (!record || record.status !== 'active') {
+      return;
+    }
+    record.results.push({
+      itemId: item.id,
+      kpId: item.kpId,
+      correct: !!correct,
+      at: new Date().toISOString()
+    });
+    if (record.results.length >= INTERVENTION_TARGET) {
+      finishIntervention();
+    } else {
+      saveState();
+    }
+  }
+
+  function finishIntervention() {
+    var record = state.intervention;
+    if (!record) {
+      return;
+    }
+    var diag = diagnoseReasons();
+    record.status = 'done';
+    record.finishedAt = new Date().toISOString();
+    record.afterScore = diag.scores && typeof diag.scores[record.key] === 'number'
+      ? diag.scores[record.key] : 0;
+    saveState();
+  }
+
+  function buildInterventionCard() {
+    var record = state.intervention;
+    if (!record || !record.title) {
+      return null;
+    }
+
+    var card = el('section', 'intervention');
+    var head = el('div', 'intervention-head');
+    head.appendChild(el('span', 'intervention-label',
+      record.status === 'active' ? '正在补' : '补练结果'));
+    head.appendChild(el('span', 'intervention-title', record.title));
+    card.appendChild(head);
+
+    if (record.status === 'active') {
+      var done = record.results.length;
+      card.appendChild(el('p', 'intervention-meta',
+        '已完成 ' + done + ' / ' + INTERVENTION_TARGET + ' 题，做完就会自动对比效果。'));
+
+      var track = el('div', 'intervention-track');
+      var fill = el('div', 'intervention-fill');
+      fill.style.width = Math.round(done / INTERVENTION_TARGET * 100) + '%';
+      track.appendChild(fill);
+      card.appendChild(track);
+
+      var stopBtn = el('button', 'btn btn-ghost btn-small', '结束补练并看结果');
+      stopBtn.type = 'button';
+      stopBtn.addEventListener('click', function () {
+        finishIntervention();
+        renderProfile();
+      });
+      card.appendChild(stopBtn);
+      return card;
+    }
+
+    var before = Math.max(0, record.baseline || 0);
+    var after = Math.max(0, record.afterScore || 0);
+    var max = Math.max(before, after, 1);
+    var correctCount = 0;
+    record.results.forEach(function (row) {
+      if (row.correct) {
+        correctCount += 1;
+      }
+    });
+
+    function barRow(label, value, cls) {
+      var row = el('div', 'compare-row');
+      row.appendChild(el('span', 'compare-label', label));
+      var bar = el('div', 'compare-bar');
+      var inner = el('div', 'compare-bar-fill' + (cls ? ' ' + cls : ''));
+      inner.style.width = Math.round(value / max * 100) + '%';
+      bar.appendChild(inner);
+      row.appendChild(bar);
+      row.appendChild(el('span', 'compare-value', String(Math.round(value))));
+      return row;
+    }
+
+    card.appendChild(barRow('补之前', before, 'is-before'));
+    card.appendChild(barRow('补之后', after, after <= before ? 'is-after' : 'is-worse'));
+
+    var delta = before > 0 ? Math.round((after - before) / before * 100) : 0;
+    var verdict;
+    if (after < before) {
+      verdict = '主因分数下降 ' + Math.abs(delta) + '%' + (delta <= -30 ? '，改善明显' : '，在往好的方向走');
+    } else if (after === before) {
+      verdict = '分数没变，说明这几题还没打到点上，换一批题再试';
+    } else {
+      verdict = '分数反而升高了，可能是这几题偏难，别灰心，先把基础题做稳';
+    }
+
+    card.appendChild(el('p', 'intervention-verdict ' + (after < before ? 'is-good' : 'is-warn'), verdict));
+    card.appendChild(el('p', 'intervention-meta',
+      '这次补练 ' + record.results.length + ' 题，做对 ' + correctCount + ' 题。'));
+
+    var againBtn = el('button', 'btn btn-ghost btn-small', '再补一轮');
+    againBtn.type = 'button';
+    againBtn.addEventListener('click', function () {
+      state.intervention = null;
+      saveState();
+      renderProfile();
+    });
+    card.appendChild(againBtn);
+    return card;
   }
 
   function buildAttributionCard(diag) {
@@ -3261,6 +3411,10 @@
     }
 
     host.appendChild(buildProfileSwitcher());
+    var interventionCard = buildInterventionCard();
+    if (interventionCard) {
+      host.appendChild(interventionCard);
+    }
     host.appendChild(buildAttributionCard(diagnoseReasons()));
 
     if (!state.history.length && !state.records.length) {
