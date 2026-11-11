@@ -518,7 +518,7 @@
     var card = el('section', 'profile-switcher');
     card.appendChild(el('h2', 'profile-switcher-title', '学习档案'));
     card.appendChild(el('p', 'profile-switcher-hint',
-      '同一台设备多人用，各存各的进度，互不影响。换设备用「导出数据 / 导入数据」。'));
+      '同一台设备多人用，各存各的进度，互不影响。换设备用「导出当前档案 / 导入到当前档案」。'));
 
     var chips = el('div', 'profile-chips');
     profiles.list.forEach(function (entry) {
@@ -3443,7 +3443,8 @@
     var url = URL.createObjectURL(blob);
     var link = document.createElement('a');
     link.href = url;
-    link.download = 'qingyou-backup.json';
+    link.download = 'qingyou-' + profileName(profiles.active) + '-' +
+      formatDate(new Date()) + '.json';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
