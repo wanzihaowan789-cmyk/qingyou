@@ -84,6 +84,11 @@ qingyou/
 
 **线上只发布 deploy/ 里的 5 个文件**，其余是开发资产。
 
+**GitHub 仓库实际托管的是产物，不是源码**（2026-11-12 核对）：远端根目录只有
+`index.html` / `app.js` / `style.css` / `data.core.js` / `data.bulk.js` / `README.txt` / `HANDOFF.md`
+七个文件，没有 `data.js`、`content/`、构建脚本。所以「代码在 GitHub」这句话只对产物成立，
+源码必须另有备份。
+
 ---
 
 ## 5. 功能清单（已实现）
@@ -208,6 +213,17 @@ python3 selfcheck.py --url https://... --slow        # 线上
 python3 analyze-priority.py    # 刷新优先重写清单
 ```
 
+**Windows / PowerShell（没有 bash 时用这套，脚本已放在项目根）**：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\build.ps1      # 单文件版 + 分包 + 回归，三步串起来
+powershell -ExecutionPolicy Bypass -File .\serve.ps1      # 本地预览 http://127.0.0.1:8123/
+$env:GITHUB_TOKEN = "github_pat_xxx"
+powershell -ExecutionPolicy Bypass -File .\publish.ps1 "提交说明"
+```
+
+> 三个 `.ps1` 必须保存为 **UTF-8 with BOM**，否则 PowerShell 5.1 按 ANSI 解析，中文会吃掉引号导致语法错误（本轮已踩）。
+
 ---
 
 ## 8. 优化历程（时间线）
@@ -224,6 +240,7 @@ python3 analyze-priority.py    # 刷新优先重写清单
 | 8 | **干预闭环 + 补练趋势**（基线→3 题→对比→折线） |
 | 9 | 考点达标进度（还差几题达标） |
 | 10 | 首批人工情境题 12 道（对数/三角/正余弦定理），三个考点跌出优先级前 7 |
+| 11 | v2 视觉与交互：宽屏两栏、吸顶头部、答题快捷键、每日目标、达标提示前置、趋势平台期 |
 
 ---
 
@@ -279,10 +296,10 @@ cd qingyou
   通过环境变量给：`GITHUB_TOKEN=xxx python3 publish.py "说明"`
 - **不要**把 token 写进任何文件（仓库是公开的）
 
-依赖：
-
-- Python 3（构建、审计、发布）
-- Playwright + Chromium（只在跑自检时需要）
+- 依赖：
+  - Python 3（构建、审计、发布）
+  - Playwright + Chromium（只在跑自检时需要）
+  - Node.js（跑 `tools/smoke.js` 无浏览器回归，可选但推荐）
 
 ---
 
@@ -298,6 +315,7 @@ cd qingyou
 | git 协议推送 | 反复 `Failed to connect port 443` | 用 `publish.py` 走 API |
 | 测试断言写死题数 | 加题后全量回归失败 | 断言改 `>=`，或同步更新数字 |
 | 示例数据被判「未使用」 | 加载示例后刷新没了 | 这是设计：只有真实作答才落盘 |
+| 目录里的 `app.js` 只有 42KB | 与本文档「4200 行」的描述对不上，功能是早期版 | 先比字节数（`Get-Item app.js`），以 zip 解压的 138KB 版为准 |
 
 ---
 
@@ -306,3 +324,34 @@ cd qingyou
 - 线上：https://wanzihaowan789-cmyk.github.io/qingyou/
 - 仓库：https://github.com/wanzihaowan789-cmyk/qingyou
 - 单文件离线版：`qingyou-standalone.html`（约 960KB，双击即开）
+---
+
+## 15. v2 迭代（2026-11-12：视觉 + 交互）
+
+**背景**：接手时目录里解压出的 `app.js` 只有 42KB / 1491 行，是早期版本；zip 内的 138KB / 4200 行才是线上版。本轮以 zip 解压版为准。
+
+### 视觉
+- 桌面容器 720 → 1120px；今日页 1024px 起两栏（左复习队列 / 右侧连续学习、最该补、及格诊断）
+- 设计令牌重做：阴影三档、焦点 ring、缓动曲线；头部吸顶 + 毛玻璃
+- 报告 hero 渐变 + 光斑；卡片 hover 微位移；品牌色块标记
+- 全局 `:focus-visible`；收藏按钮触控目标补到 6×8
+- 移动端答题层加拖拽把手；`prefers-reduced-motion` 降级
+
+### 交互
+- 答题层：点遮罩关闭、顶部进度条、A–D 选题、Enter 提交、Ctrl+Enter 提交解答题、Esc 关闭
+- 主视图：数字键 1–4 切换；tab 支持 ←/→/Home/End
+- 每日目标可切 3 / 5 / 8，存 `state.profile.dailyGoal`（随档案导出）
+- 概念卡折叠状态直接显示「还差 N 道达标」
+- 补练趋势新增最近一次变化量判断（继续下降 / 平台期 / 回升）
+
+### 回归
+```bash
+python build-standalone.py && python build-deploy.py
+node tools/smoke.js .    # 在 qingyou/ 目录执行：4 视图 + 目标切换 + 答题 + 快捷键
+```
+`tools/smoke.js` 是开发辅助（无浏览器 DOM 桩），不进部署包。
+
+### 这轮没做
+- 深色模式：CSS 仍有约 60 处硬编码浅色，直接加 `prefers-color-scheme` 会脏
+- 生成题替换（第 11 节第 1 项仍是最高价值的内容工作）
+- 归因阈值校准（需要真实使用数据）
