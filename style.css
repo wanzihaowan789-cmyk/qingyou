@@ -2278,3 +2278,11 @@ sub.math-script {
   font-size: 12px;
   color: var(--muted);
 }
+
+/* ---------- 判不定时的说明 ---------- */
+.quiz-uncertain-hint {
+  margin: 6px 0 10px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted);
+}
