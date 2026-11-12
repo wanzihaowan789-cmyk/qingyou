@@ -79,7 +79,8 @@
     hintUsed: false,
     startedAt: 0,
     elapsedMs: 0,
-    lastAnswer: ''
+    lastAnswer: '',
+    optionButtons: []
   };
 
   function el(tag, className, text) {
@@ -736,9 +737,41 @@
     renderView(name);
   }
 
+  var TAB_ORDER = ['today', 'cards', 'board', 'profile'];
+
+  function focusTabAt(index) {
+    var safe = (index + TAB_ORDER.length) % TAB_ORDER.length;
+    var view = TAB_ORDER[safe];
+    switchView(view);
+    var next = document.querySelector('.tab[data-view="' + view + '"]');
+    if (next) {
+      next.focus();
+    }
+  }
+
   tabs.forEach(function (tab) {
     tab.addEventListener('click', function () {
       switchView(tab.getAttribute('data-view'));
+    });
+    /* tablist 的方向键导航：让键盘用户不用 Tab 逐个穿过 */
+    tab.addEventListener('keydown', function (event) {
+      var at = TAB_ORDER.indexOf(tab.getAttribute('data-view'));
+      if (at === -1) {
+        return;
+      }
+      if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        focusTabAt(at + 1);
+      } else if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        focusTabAt(at - 1);
+      } else if (event.key === 'Home') {
+        event.preventDefault();
+        focusTabAt(0);
+      } else if (event.key === 'End') {
+        event.preventDefault();
+        focusTabAt(TAB_ORDER.length - 1);
+      }
     });
   });
 
@@ -1629,6 +1662,13 @@
       ? highlightInto(el('p', 'card-oneline'), card.oneLine, keyword)
       : mathEl('p', 'card-oneline', card.oneLine));
 
+    /* 折叠状态下也能看到达标进度，不用展开才知道还差几题 */
+    var cardProgress = kpProgress(card.kpId);
+    summary.appendChild(el('span', 'card-goal-chip' + (cardProgress.unlocked ? ' is-done' : ''),
+      cardProgress.unlocked
+        ? '基础达标 · 中档已解锁'
+        : '还差 ' + cardProgress.remaining + ' 道达标'));
+
     var practice = el('button', 'btn btn-primary btn-small', '去练 2 道');
     practice.type = 'button';
     practice.addEventListener('click', function (event) {
@@ -1785,6 +1825,24 @@
     return formatDate(date);
   }
 
+  var DAILY_GOAL_OPTIONS = [3, 5, 8];
+
+  /* 每日目标：存在档案 profile 里，和进度一起导出 */
+  function dailyGoal() {
+    var value = Number(state.profile && state.profile.dailyGoal);
+    return DAILY_GOAL_OPTIONS.indexOf(value) === -1 ? 5 : value;
+  }
+
+  function setDailyGoal(value) {
+    if (!state.profile || typeof state.profile !== 'object') {
+      state.profile = {};
+    }
+    state.profile.dailyGoal = value;
+    saveState();
+    renderToday();
+    showToast('每日目标已改为 ' + value + ' 题');
+  }
+
   function buildLearningStatus() {
     var dates = {};
     state.history.forEach(function (entry) {
@@ -1811,7 +1869,7 @@
     return {
       streak: streak,
       todayCount: todayCount,
-      goal: 5,
+      goal: dailyGoal(),
       total: total,
       mastered: mastered,
       badges: [
@@ -1844,6 +1902,21 @@
       badges.appendChild(el('span', 'badge-chip' + (badge.unlocked ? ' is-on' : ''), badge.label));
     });
     card.appendChild(badges);
+
+    var goalRow = el('div', 'goal-row');
+    goalRow.appendChild(el('span', 'goal-label', '每日目标'));
+    DAILY_GOAL_OPTIONS.forEach(function (value) {
+      var chip = el('button', 'goal-chip' + (value === status.goal ? ' is-active' : ''), value + ' 题');
+      chip.type = 'button';
+      chip.setAttribute('aria-pressed', value === status.goal ? 'true' : 'false');
+      chip.addEventListener('click', function () {
+        if (value !== status.goal) {
+          setDailyGoal(value);
+        }
+      });
+      goalRow.appendChild(chip);
+    });
+    card.appendChild(goalRow);
 
     if (status.todayCount < status.goal) {
       var cta = el('button', 'btn btn-primary streak-cta',
@@ -3441,6 +3514,22 @@
     card.appendChild(el('p', 'trend-summary ' + (improved ? 'is-good' : 'is-warn'), summary));
     card.appendChild(el('p', 'trend-meta',
       '累计补练 ' + questionTotal + ' 题，做对 ' + correctTotal + ' 题。'));
+
+    /* 最近一次的变化量：判断是否进入平台期，避免盲目加练 */
+    if (points.length >= 3) {
+      var recentChange = points[points.length - 1] - points[points.length - 2];
+      var flatLine = Math.max(1, Math.abs(points[0]) * 0.05);
+      var slopeText;
+      if (recentChange < 0 && Math.abs(recentChange) >= flatLine) {
+        slopeText = '最近一次又降了 ' + Math.abs(Math.round(recentChange)) +
+          ' 分，曲线还在往下走，按现在的练法继续。';
+      } else if (Math.abs(recentChange) <= flatLine) {
+        slopeText = '最近两次分数基本持平，进入平台期：同难度再刷收益变小，建议换练法或加深一档难度。';
+      } else {
+        slopeText = '最近一次分数回升，说明这几题没补到点上，先回概念卡把第一步补稳。';
+      }
+      card.appendChild(el('p', 'trend-meta', slopeText));
+    }
     return card;
   }
 
@@ -3944,6 +4033,17 @@
     quizProgress.textContent = '第 ' + (quiz.index + 1) + ' / ' + quiz.items.length + ' 题 · ' +
       (typeLabels[item.type] || '练习') + ' · ' + (levelLabels[item.level] || '基础');
     quizBody.textContent = '';
+    quiz.optionButtons = [];
+
+    var progressBar = el('div', 'quiz-progressbar');
+    var progressFill = el('div', 'quiz-progressbar-fill');
+    progressFill.style.width = Math.round((quiz.index + 1) / quiz.items.length * 100) + '%';
+    progressBar.appendChild(progressFill);
+    progressBar.setAttribute('role', 'progressbar');
+    progressBar.setAttribute('aria-valuemin', '1');
+    progressBar.setAttribute('aria-valuemax', String(quiz.items.length));
+    progressBar.setAttribute('aria-valuenow', String(quiz.index + 1));
+    quizBody.appendChild(progressBar);
 
     quizBody.appendChild(mathEl('p', 'quiz-stem', item.stem));
 
@@ -3997,6 +4097,9 @@
         btn.type = 'button';
         btn.setAttribute('data-letter', letter);
         btn.addEventListener('click', function () {
+          if (quiz.answered) {
+            return;
+          }
           if (item.type === 'multi') {
             var position = quiz.selected.indexOf(letter);
             if (position === -1) {
@@ -4013,6 +4116,7 @@
             all[i].classList.toggle('is-selected', all[i].getAttribute('data-letter') === letter);
           }
         });
+        quiz.optionButtons.push({ letter: letter, node: btn });
         optionWrap.appendChild(btn);
       });
       quizBody.appendChild(optionWrap);
@@ -4037,6 +4141,8 @@
     submitBtn.addEventListener('click', submitAnswer);
     actions.appendChild(submitBtn);
     quizBody.appendChild(actions);
+    quizBody.appendChild(el('p', 'quiz-shortcut-hint',
+      '快捷键：A–D 选题 · Enter 提交 · Esc 关闭'));
   }
 
   function submitAnswer() {
@@ -4404,9 +4510,60 @@
 
   quizClose.addEventListener('click', closeQuiz);
 
-  document.addEventListener('keydown', function (event) {
-    if (event.key === 'Escape' && !quizModal.hidden) {
+  /* 点遮罩也关闭，和移动端弹层习惯一致 */
+  quizModal.addEventListener('click', function (event) {
+    if (event.target === quizModal) {
       closeQuiz();
+    }
+  });
+
+  document.addEventListener('keydown', function (event) {
+    if (!quizModal.hidden) {
+      if (event.key === 'Escape') {
+        closeQuiz();
+        return;
+      }
+      var fieldTag = event.target && event.target.tagName;
+      if (fieldTag === 'INPUT' || fieldTag === 'TEXTAREA') {
+        /* 填空回车提交；解答题用 Ctrl+Enter，避免换行被吞 */
+        if (event.key === 'Enter' && (fieldTag === 'INPUT' || event.ctrlKey || event.metaKey)) {
+          event.preventDefault();
+          submitAnswer();
+        }
+        return;
+      }
+      if (!quiz.answered && /^[a-dA-D]$/.test(event.key) && quiz.optionButtons.length) {
+        var want = event.key.toUpperCase();
+        for (var i = 0; i < quiz.optionButtons.length; i += 1) {
+          if (quiz.optionButtons[i].letter === want) {
+            quiz.optionButtons[i].node.click();
+            quiz.optionButtons[i].node.focus();
+            return;
+          }
+        }
+      }
+      if (event.key === 'Enter' && !quiz.answered) {
+        event.preventDefault();
+        submitAnswer();
+      }
+      return;
+    }
+
+    /* 未打开答题层时：数字键 1–4 切主视图 */
+    if (event.metaKey || event.ctrlKey || event.altKey) {
+      return;
+    }
+    var tag = event.target && event.target.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+      return;
+    }
+    var viewMap = { '1': 'today', '2': 'cards', '3': 'board', '4': 'profile' };
+    if (viewMap[event.key]) {
+      switchView(viewMap[event.key]);
+      var target = document.querySelector('.tab[data-view="' + viewMap[event.key] + '"]');
+      if (target) {
+        target.focus();
+      }
     }
   });
 
