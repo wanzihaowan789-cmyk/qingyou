@@ -614,7 +614,9 @@
         records: Array.isArray(parsed.records) ? parsed.records : [],
         history: Array.isArray(parsed.history) ? parsed.history : [],
         intervention: parsed.intervention && typeof parsed.intervention === 'object'
-          ? parsed.intervention : null
+          ? parsed.intervention : null,
+        interventionHistory: Array.isArray(parsed.interventionHistory)
+          ? parsed.interventionHistory : []
       };
     } catch (error) {
       return defaultState();
@@ -3150,7 +3152,7 @@
 
   function finishIntervention() {
     var record = state.intervention;
-    if (!record) {
+    if (!record || record.status === 'done') {
       return;
     }
     var diag = diagnoseReasons();
@@ -3158,6 +3160,29 @@
     record.finishedAt = new Date().toISOString();
     record.afterScore = diag.scores && typeof diag.scores[record.key] === 'number'
       ? diag.scores[record.key] : 0;
+
+    var correct = 0;
+    record.results.forEach(function (row) {
+      if (row.correct) {
+        correct += 1;
+      }
+    });
+    if (!Array.isArray(state.interventionHistory)) {
+      state.interventionHistory = [];
+    }
+    state.interventionHistory.push({
+      key: record.key,
+      title: record.title,
+      startedAt: record.startedAt,
+      finishedAt: record.finishedAt,
+      baseline: record.baseline,
+      afterScore: record.afterScore,
+      total: record.results.length,
+      correct: correct
+    });
+    if (state.interventionHistory.length > 30) {
+      state.interventionHistory = state.interventionHistory.slice(-30);
+    }
     saveState();
   }
 
@@ -3242,6 +3267,118 @@
       renderProfile();
     });
     card.appendChild(againBtn);
+    return card;
+  }
+
+  /* ---------- 补练趋势：同一原因多次补练的分数曲线 ---------- */
+  var SVG_NS = 'http://www.w3.org/2000/svg';
+
+  function buildTrendCard() {
+    var log = state.interventionHistory || [];
+    if (log.length < 2) {
+      return null;
+    }
+    var latest = log[log.length - 1];
+    var series = [];
+    for (var i = 0; i < log.length; i += 1) {
+      if (log[i].key === latest.key) {
+        series.push(log[i]);
+      }
+    }
+    if (series.length < 2) {
+      return null;
+    }
+
+    /* 起点用第一次补练之前的基线，之后每次取补练后的分数 */
+    var points = [series[0].baseline];
+    var correctTotal = 0;
+    var questionTotal = 0;
+    for (i = 0; i < series.length; i += 1) {
+      points.push(series[i].afterScore);
+      correctTotal += series[i].correct || 0;
+      questionTotal += series[i].total || 0;
+    }
+
+    var minValue = Math.min.apply(null, points);
+    var maxValue = Math.max.apply(null, points);
+    var span = Math.max(1, maxValue - minValue);
+    var W = 300;
+    var H = 92;
+    var padX = 26;
+    var padTop = 16;
+    var padBottom = 26;
+    var usableW = W - padX * 2;
+    var usableH = H - padTop - padBottom;
+
+    var svg = document.createElementNS(SVG_NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    svg.setAttribute('class', 'trend-svg');
+    svg.setAttribute('role', 'img');
+    svg.setAttribute('aria-label', latest.title + ' 补练分数趋势');
+
+    var coords = [];
+    for (i = 0; i < points.length; i += 1) {
+      var x = padX + (points.length === 1 ? usableW / 2 : usableW * i / (points.length - 1));
+      var y = padTop + usableH - (points[i] - minValue) / span * usableH;
+      coords.push({ x: x, y: y, value: points[i] });
+    }
+
+    var improved = points[points.length - 1] < points[0];
+    var color = improved ? '#1E9E6A' : '#C2410C';
+
+    var line = document.createElementNS(SVG_NS, 'polyline');
+    line.setAttribute('points', coords.map(function (p) {
+      return p.x.toFixed(1) + ',' + p.y.toFixed(1);
+    }).join(' '));
+    line.setAttribute('fill', 'none');
+    line.setAttribute('stroke', color);
+    line.setAttribute('stroke-width', '2');
+    line.setAttribute('stroke-linecap', 'round');
+    svg.appendChild(line);
+
+    coords.forEach(function (p, index) {
+      var dot = document.createElementNS(SVG_NS, 'circle');
+      dot.setAttribute('cx', p.x.toFixed(1));
+      dot.setAttribute('cy', p.y.toFixed(1));
+      dot.setAttribute('r', index === coords.length - 1 ? '4' : '3');
+      dot.setAttribute('fill', '#FFFFFF');
+      dot.setAttribute('stroke', color);
+      dot.setAttribute('stroke-width', '2');
+      svg.appendChild(dot);
+    });
+
+    /* 首尾标数值，中间不标，避免拥挤 */
+    var firstText = document.createElementNS(SVG_NS, 'text');
+    firstText.setAttribute('x', coords[0].x.toFixed(1));
+    firstText.setAttribute('y', (coords[0].y - 8).toFixed(1));
+    firstText.setAttribute('text-anchor', 'middle');
+    firstText.setAttribute('class', 'trend-label');
+    firstText.textContent = String(Math.round(coords[0].value));
+    svg.appendChild(firstText);
+
+    var lastCoord = coords[coords.length - 1];
+    var lastText = document.createElementNS(SVG_NS, 'text');
+    lastText.setAttribute('x', lastCoord.x.toFixed(1));
+    lastText.setAttribute('y', (lastCoord.y - 8).toFixed(1));
+    lastText.setAttribute('text-anchor', 'middle');
+    lastText.setAttribute('class', 'trend-label');
+    lastText.textContent = String(Math.round(lastCoord.value));
+    svg.appendChild(lastText);
+
+    var card = el('section', 'trend-card');
+    card.appendChild(el('h2', 'trend-title', '补练趋势 · ' + latest.title));
+    card.appendChild(svg);
+
+    var delta = points[0] > 0
+      ? Math.round((points[points.length - 1] - points[0]) / points[0] * 100) : 0;
+    var summary = improved
+      ? '从 ' + Math.round(points[0]) + ' 降到 ' + Math.round(lastCoord.value) +
+        '，共补练 ' + series.length + ' 次，下降了 ' + Math.abs(delta) + '%'
+      : '从 ' + Math.round(points[0]) + ' 变成 ' + Math.round(lastCoord.value) +
+        '，共补练 ' + series.length + ' 次，暂时没有下降';
+    card.appendChild(el('p', 'trend-summary ' + (improved ? 'is-good' : 'is-warn'), summary));
+    card.appendChild(el('p', 'trend-meta',
+      '累计补练 ' + questionTotal + ' 题，做对 ' + correctTotal + ' 题。'));
     return card;
   }
 
@@ -3414,6 +3551,10 @@
     var interventionCard = buildInterventionCard();
     if (interventionCard) {
       host.appendChild(interventionCard);
+    }
+    var trendCard = buildTrendCard();
+    if (trendCard) {
+      host.appendChild(trendCard);
     }
     host.appendChild(buildAttributionCard(diagnoseReasons()));
 
