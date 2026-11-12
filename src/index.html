@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="description" content="青柚学伴：先补概念洞，再按遗忘曲线复习。">
+  <title>青柚学伴</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <noscript>
+    <p class="boot-error">这个页面需要开启 JavaScript 才能使用。</p>
+  </noscript>
+
+  <header class="app-header">
+    <h1 class="brand">青柚学伴</h1>
+    <p class="subtitle">先补概念洞，再按遗忘曲线复习</p>
+    <nav class="tabs" role="tablist" aria-label="主视图切换">
+      <button class="tab is-active" type="button" role="tab" id="tab-today"
+        aria-selected="true" aria-controls="view-today" data-view="today">今日</button>
+      <button class="tab" type="button" role="tab" id="tab-cards"
+        aria-selected="false" aria-controls="view-cards" data-view="cards">概念卡</button>
+      <button class="tab" type="button" role="tab" id="tab-board"
+        aria-selected="false" aria-controls="view-board" data-view="board">错题台</button>
+      <button class="tab" type="button" role="tab" id="tab-profile"
+        aria-selected="false" aria-controls="view-profile" data-view="profile">画像</button>
+    </nav>
+  </header>
+
+  <main id="app" class="app-main">
+    <p id="cards-notice" class="notice" role="status" hidden></p>
+    <section class="view is-active" id="view-today" data-view="today" aria-labelledby="tab-today">
+      <div id="today-content"></div>
+    </section>
+    <section class="view" id="view-cards" data-view="cards" aria-labelledby="tab-cards">
+      <div id="cards-guide" class="guide" hidden></div>
+      <div id="card-list"></div>
+    </section>
+    <section class="view" id="view-board" data-view="board" aria-labelledby="tab-board">
+      <div id="board-content"></div>
+    </section>
+    <section class="view" id="view-profile" data-view="profile" aria-labelledby="tab-profile">
+      <div id="profile-content"></div>
+    </section>
+  </main>
+
+  <section class="settings" aria-labelledby="settings-title">
+    <div class="settings-card">
+      <h2 id="settings-title" class="settings-title">数据</h2>
+      <p class="settings-note">每个档案的数据只存在这台设备上，导出后请自行保管。</p>
+      <div class="settings-actions">
+        <button id="export-btn" class="btn btn-ghost btn-small" type="button">导出当前档案</button>
+        <button id="import-btn" class="btn btn-ghost btn-small" type="button">导入到当前档案</button>
+        <button id="import-bank-btn" class="btn btn-ghost btn-small" type="button">导入题库</button>
+        <button id="seed-btn" class="btn btn-ghost btn-small" type="button">加载示例数据</button>
+      </div>
+      <input id="import-file" type="file" accept=".json,application/json" hidden>
+      <input id="import-bank-file" type="file" accept=".json,application/json" hidden>
+    </div>
+  </section>
+
+  <footer class="app-footer">
+    <p>青柚学伴 · 高一数学诊断与复习</p>
+    <p class="privacy">每个档案的数据只存在这台设备上，导出的文件请自己保管。</p>
+  </footer>
+
+  <div id="quiz-modal" class="quiz-modal" hidden>
+    <div class="quiz-panel" role="dialog" aria-modal="true" aria-labelledby="quiz-title">
+      <div class="quiz-head">
+        <div>
+          <p id="quiz-title" class="quiz-title"></p>
+          <p id="quiz-progress" class="quiz-progress"></p>
+        </div>
+        <button id="quiz-close" class="quiz-close" type="button" aria-label="关闭答题">×</button>
+      </div>
+      <div id="quiz-body" class="quiz-body"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+  <script>
+    window.addEventListener('load', function () {
+      if (window.__QY_APP_LOADED) {
+        return;
+      }
+      var box = document.createElement('div');
+      box.className = 'boot-error';
+      box.setAttribute('role', 'alert');
+
+      var title = document.createElement('p');
+      title.className = 'boot-error-title';
+      title.textContent = '页面脚本没有加载成功';
+
+      var text = document.createElement('p');
+      text.className = 'boot-error-text';
+      text.textContent = '请确认 style.css、app.js、data.js 与 index.html 在同一个文件夹里；如果只拿到了一个文件，请改用 qingyou-standalone.html。';
+
+      box.appendChild(title);
+      box.appendChild(text);
+      document.body.insertBefore(box, document.body.firstChild);
+    });
+  </script>
+</body>
+</html>
