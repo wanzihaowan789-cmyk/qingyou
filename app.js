@@ -1376,6 +1376,7 @@
 
     var favoriteFilter = el('button', 'btn btn-small' + (favoritesOnly ? ' btn-primary' : ''), '只看收藏');
     favoriteFilter.type = 'button';
+    favoriteFilter.id = 'fav-filter';
     favoriteFilter.setAttribute('aria-pressed', favoritesOnly ? 'true' : 'false');
     favoriteFilter.addEventListener('click', function () {
       favoritesOnly = !favoritesOnly;
