@@ -78,6 +78,7 @@ qingyou/
 ├── selfcheck2.py           自检下（14 项：答题/档案/归因/干预/布局）
 ├── analyze-priority.py     生成「人工重写优先级清单」
 ├── docs/priority-rewrite.md 优先级清单产物
+├── CHANGELOG.md            变更记录（25 条 bug + 性能 + v2 迭代，查改动看这份）
 ├── deploy/                 【线上发布目录】5 个文件 + README.txt
 └── qingyou-standalone.html 单文件版（双击即开，离线用）
 ```
@@ -324,6 +325,7 @@ cd qingyou
 - 线上：https://wanzihaowan789-cmyk.github.io/qingyou/
 - 仓库：https://github.com/wanzihaowan789-cmyk/qingyou
 - 单文件离线版：`qingyou-standalone.html`（约 960KB，双击即开）
+- 文档：`HANDOFF.md`（交接看这份）+ `CHANGELOG.md`（查改动、查 bug 修复看那份）
 ---
 
 ## 15. v2 迭代（2026-11-12：视觉 + 交互）
