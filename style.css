@@ -2230,3 +2230,51 @@ sub.math-script {
 .intervention-verdict.is-warn {
   color: #C2410C;
 }
+
+/* ---------- 补练趋势 ---------- */
+.trend-card {
+  padding: 16px;
+  margin-bottom: 14px;
+  border-radius: var(--radius);
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+
+.trend-title {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.trend-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.trend-label {
+  font-size: 9px;
+  fill: var(--muted);
+  font-family: inherit;
+}
+
+.trend-summary {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.trend-summary.is-good {
+  color: var(--ok);
+  font-weight: 600;
+}
+
+.trend-summary.is-warn {
+  color: #C2410C;
+}
+
+.trend-meta {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
