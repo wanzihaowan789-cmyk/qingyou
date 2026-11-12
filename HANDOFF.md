@@ -326,6 +326,7 @@ cd qingyou
 - 仓库：https://github.com/wanzihaowan789-cmyk/qingyou
 - 单文件离线版：`qingyou-standalone.html`（约 960KB，双击即开）
 - 文档：`HANDOFF.md`（交接看这份）+ `CHANGELOG.md`（查改动、查 bug 修复看那份）
+- 源码备份：仓库 `src/qingyou-source-2026-11-13.zip`（完整工程 50 个文件，378 KB，含 content/ 与全部脚本）
 ---
 
 ## 15. v2 迭代（2026-11-12：视觉 + 交互）
