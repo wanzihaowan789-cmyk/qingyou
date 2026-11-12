@@ -2286,3 +2286,53 @@ sub.math-script {
   line-height: 1.6;
   color: var(--muted);
 }
+
+/* ---------- 考点达标进度 ---------- */
+.kp-progress {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #F7F9FE;
+  border: 1px solid #E8ECF7;
+}
+
+.kp-progress.is-unlocked {
+  background: #F1FAF5;
+  border-color: #CFEBDC;
+}
+
+.kp-progress-text {
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text);
+}
+
+.kp-progress.is-unlocked .kp-progress-text {
+  color: var(--ok);
+  font-weight: 600;
+}
+
+.kp-progress-track {
+  height: 6px;
+  border-radius: 999px;
+  background: #E3E8F3;
+  overflow: hidden;
+}
+
+.kp-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--brand);
+  transition: width 0.3s;
+}
+
+.kp-progress.is-unlocked .kp-progress-fill {
+  background: var(--ok);
+}
+
+.kp-board-progress {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
