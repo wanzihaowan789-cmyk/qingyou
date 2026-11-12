@@ -17,26 +17,30 @@
     <h1 class="brand">青柚学伴</h1>
     <p class="subtitle">先补概念洞，再按遗忘曲线复习</p>
     <nav class="tabs" role="tablist" aria-label="主视图切换">
-      <button class="tab is-active" type="button" role="tab" aria-selected="true" data-view="today">今日</button>
-      <button class="tab" type="button" role="tab" aria-selected="false" data-view="cards">概念卡</button>
-      <button class="tab" type="button" role="tab" aria-selected="false" data-view="board">错题台</button>
-      <button class="tab" type="button" role="tab" aria-selected="false" data-view="profile">画像</button>
+      <button class="tab is-active" type="button" role="tab" id="tab-today"
+        aria-selected="true" aria-controls="view-today" data-view="today">今日</button>
+      <button class="tab" type="button" role="tab" id="tab-cards"
+        aria-selected="false" aria-controls="view-cards" data-view="cards">概念卡</button>
+      <button class="tab" type="button" role="tab" id="tab-board"
+        aria-selected="false" aria-controls="view-board" data-view="board">错题台</button>
+      <button class="tab" type="button" role="tab" id="tab-profile"
+        aria-selected="false" aria-controls="view-profile" data-view="profile">画像</button>
     </nav>
   </header>
 
   <main id="app" class="app-main">
     <p id="cards-notice" class="notice" role="status" hidden></p>
-    <section class="view is-active" data-view="today" aria-labelledby="tab-today">
+    <section class="view is-active" id="view-today" data-view="today" aria-labelledby="tab-today">
       <div id="today-content"></div>
     </section>
-    <section class="view" data-view="cards" aria-labelledby="tab-cards">
+    <section class="view" id="view-cards" data-view="cards" aria-labelledby="tab-cards">
       <div id="cards-guide" class="guide" hidden></div>
       <div id="card-list"></div>
     </section>
-    <section class="view" data-view="board" aria-labelledby="tab-board">
+    <section class="view" id="view-board" data-view="board" aria-labelledby="tab-board">
       <div id="board-content"></div>
     </section>
-    <section class="view" data-view="profile" aria-labelledby="tab-profile">
+    <section class="view" id="view-profile" data-view="profile" aria-labelledby="tab-profile">
       <div id="profile-content"></div>
     </section>
   </main>
