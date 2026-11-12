@@ -1007,8 +1007,23 @@
     return candidates;
   }
 
+  function normalizeJudge(value) {
+    var text = normalizeAnswer(value);
+    if (text === 'a' || text === '对' || text === '正确' || text === 'true' || text === '√') {
+      return 'a';
+    }
+    if (text === 'b' || text === '错' || text === '错误' || text === 'false' || text === '×') {
+      return 'b';
+    }
+    return text;
+  }
+
   function isAnswerCorrect(item, answer) {
     var user = normalizeAnswer(answer);
+    if (item.type === 'judge') {
+      /* 判断题答案可能写成 A/B，也可能写成 正确/错误 */
+      return normalizeJudge(answer) === normalizeJudge(item.answer);
+    }
     if (item.type === 'multi') {
       var userSet = user.replace(/[,;、]/g, '').split('').sort().join('');
       var answerSet = normalizeAnswer(item.answer)
