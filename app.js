@@ -4108,16 +4108,20 @@
 
   function renderUncertain(item, resultWrap) {
     resultWrap.appendChild(el('p', 'quiz-verdict is-uncertain', '和参考答案写法不同'));
+    resultWrap.appendChild(el('p', 'quiz-uncertain-hint',
+      '系统只认标准写法。如果其实是对的，最下面可以改判，不用选错因。'));
     resultWrap.appendChild(mathEl('p', 'quiz-answer', '参考答案：' + item.answer));
     if (item.explain) {
       resultWrap.appendChild(mathEl('p', 'quiz-explain', item.explain));
     }
-    resultWrap.appendChild(el('p', 'quiz-layer-label', '你写的答案算对吗？'));
+    resultWrap.appendChild(el('p', 'quiz-layer-label', '这次错在哪一层？'));
 
-    var actions = el('div', 'quiz-actions');
-    var layerBox = el('div');
-    layerBox.hidden = true;
     var decided = false;
+    var layerList = el('div', 'layer-list');
+    var hintBar = el('p', 'quiz-uncertain-hint',
+      '你的答案其实是对的？点下面的按钮改判，不选错因。');
+    var overrideBtn = el('button', 'btn btn-ghost btn-small', '其实我算对了');
+    overrideBtn.type = 'button';
 
     function finishRecord(correct, layer, label) {
       if (decided) {
@@ -4126,32 +4130,13 @@
       decided = true;
       recordAnswer(item, correct, layer);
       completeMasteryIfNeeded(correct);
-      actions.textContent = '';
-      layerBox.textContent = '';
+      layerList.textContent = '';
+      hintBar.textContent = '';
+      overrideBtn.hidden = true;
       resultWrap.appendChild(el('p', 'quiz-done', '已记录：' + label));
       resultWrap.appendChild(buildNextButton());
     }
 
-    var yesBtn = el('button', 'btn btn-primary', '我答对了');
-    yesBtn.type = 'button';
-    yesBtn.addEventListener('click', function () {
-      finishRecord(true, '', '这题算答对');
-    });
-
-    var noBtn = el('button', 'btn btn-ghost', '我答错了');
-    noBtn.type = 'button';
-    noBtn.addEventListener('click', function () {
-      if (decided || !layerBox.hidden) {
-        return;
-      }
-      layerBox.hidden = false;
-    });
-
-    actions.appendChild(yesBtn);
-    actions.appendChild(noBtn);
-    resultWrap.appendChild(actions);
-
-    var layerList = el('div', 'layer-list');
     LAYERS.forEach(function (layer) {
       var btn = el('button', 'layer-btn');
       btn.type = 'button';
@@ -4164,8 +4149,14 @@
       });
       layerList.appendChild(btn);
     });
-    layerBox.appendChild(layerList);
-    resultWrap.appendChild(layerBox);
+
+    overrideBtn.addEventListener('click', function () {
+      finishRecord(true, '', '这题算答对');
+    });
+
+    resultWrap.appendChild(layerList);
+    resultWrap.appendChild(hintBar);
+    resultWrap.appendChild(overrideBtn);
   }
 
   function buildNextButton() {
