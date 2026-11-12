@@ -1531,6 +1531,46 @@
     return node;
   }
 
+  /* 考点达标进度：3 道基础题 + 正确率 60% 解锁中档 */
+  function kpProgress(kpId) {
+    var stats = levelStats(kpId);
+    var answered = stats.answered;
+    var correct = stats.correct;
+    var unlocked = answered >= 3 && correct / answered >= 0.6;
+    var needForRate = Math.ceil((0.6 * answered - correct) / 0.4);
+    var needForCount = 3 - answered;
+    var remaining = unlocked ? 0 : Math.max(0, needForRate, needForCount);
+    return {
+      answered: answered,
+      correct: correct,
+      unlocked: unlocked,
+      remaining: remaining,
+      percent: Math.min(100, Math.round(answered / 3 * 100))
+    };
+  }
+
+  function buildKpProgressBlock(kpId) {
+    var progress = kpProgress(kpId);
+    var box = el('div', 'kp-progress' + (progress.unlocked ? ' is-unlocked' : ''));
+    var text;
+    if (progress.unlocked) {
+      text = '基础题已达标：' + progress.answered + ' 题、答对 ' + progress.correct +
+        ' 道，中档题已解锁';
+    } else if (progress.answered === 0) {
+      text = '还没练过基础题。达标条件：3 道题、正确率 60%';
+    } else {
+      text = '基础题 ' + progress.answered + '/3 · 答对 ' + progress.correct +
+        ' 道 · 再答对 ' + progress.remaining + ' 道就达标（解锁中档）';
+    }
+    box.appendChild(el('p', 'kp-progress-text', text));
+    var track = el('div', 'kp-progress-track');
+    var fill = el('div', 'kp-progress-fill');
+    fill.style.width = progress.percent + '%';
+    track.appendChild(fill);
+    box.appendChild(track);
+    return box;
+  }
+
   function buildCard(card, keyword) {
     var article = el('article', 'card card-collapsible');
     var isOpen = !!expandedCards[card.id];
@@ -1586,6 +1626,8 @@
 
     var detail = el('div', 'card-detail');
     detail.hidden = !isOpen;
+
+    detail.appendChild(buildKpProgressBlock(card.kpId));
 
     var fromSection = el('div', 'card-section');
     fromSection.appendChild(el('span', 'card-label', '它从哪来'));
@@ -2241,6 +2283,10 @@
     }
     card.appendChild(el('p', 'kp-board-meta', meta));
     card.appendChild(el('p', 'kp-board-due', dueLabel(group.dueAt)));
+    var kpState = kpProgress(group.kpId);
+    card.appendChild(el('p', 'kp-board-progress', kpState.unlocked
+      ? '基础题已达标，中档题已解锁'
+      : '基础题还差 ' + kpState.remaining + ' 道正确才达标'));
     card.appendChild(el('p', 'kp-board-layer', group.layer
       ? '主要错因：' + layerLabel(group.layer)
       : '主要错因：还没有记录'));
