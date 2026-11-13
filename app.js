@@ -1978,6 +1978,7 @@
       return;
     }
     host.textContent = '';
+    host.classList.remove('today-empty');
 
     host.appendChild(buildStreakCard(buildLearningStatus()));
 
@@ -2001,6 +2002,8 @@
     var queue = dueQueue();
 
     if (queue.length === 0) {
+      /* 空态：两列均衡放置，避免右侧卡片悬空、左列大片留白 */
+      host.classList.add('today-empty');
       var empty = el('div', 'empty-state');
       if (!state.records.length) {
         empty.appendChild(el('p', 'empty-title', '先认识一下青柚学伴'));
@@ -2011,11 +2014,6 @@
           switchView('cards');
         });
         empty.appendChild(startBtn);
-        var sampleBtn = el('button', 'btn btn-ghost btn-small', '加载示例数据');
-        sampleBtn.type = 'button';
-        sampleBtn.style.marginLeft = '8px';
-        sampleBtn.addEventListener('click', loadSampleData);
-        empty.appendChild(sampleBtn);
       } else {
         empty.appendChild(el('p', 'empty-title', '今天没有要复习的'));
         empty.appendChild(el('p', 'empty-text', '去概念卡看一张，再练 2 道。'));
