@@ -2485,6 +2485,31 @@ body {
     grid-column: 1 / -1;
   }
 
+  /* 空态：两列等宽，左右各一张卡，避免单卡悬在右侧 */
+  #today-content.today-empty {
+    grid-template-columns: 1fr 1fr;
+    align-items: stretch;
+  }
+
+  #today-content.today-empty > .streak-card {
+    grid-column: 1;
+    grid-row: 1;
+    margin-bottom: 0;
+  }
+
+  #today-content.today-empty > .empty-state {
+    grid-column: 2;
+    grid-row: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+  }
+
+  #today-content.today-empty > .empty-state .btn {
+    margin-top: 10px;
+  }
+
   .card-grid {
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   }
