@@ -967,6 +967,42 @@ body.touch-dragging {
   font-size: 12px;
 }
 
+/* ---------- 学习报告 ---------- */
+#report-card {
+  margin-bottom: 12px;
+}
+
+.report-panel {
+  max-width: 560px;
+}
+
+.report-text {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Microsoft YaHei", monospace;
+  font-size: 13px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 55vh;
+  overflow: auto;
+}
+
+.report-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.report-hint {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
 /* ---------- 新版本提示条 ---------- */
 .update-bar {
   position: fixed;
