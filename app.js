@@ -4754,6 +4754,205 @@
     }
   }
 
+  /* ============================================================
+     一键学习报告：纯本地生成，不联网、不上传
+     ============================================================ */
+  function pct(part, whole) {
+    return whole > 0 ? Math.round(part / whole * 100) : 0;
+  }
+
+  function collectStats(sinceMs) {
+    var rows = (state.history || []).filter(function (entry) {
+      var t = Date.parse(entry.at || '');
+      return t && t >= sinceMs;
+    });
+    var correct = 0;
+    var kpMap = {};
+    rows.forEach(function (entry) {
+      if (entry.correct) {
+        correct += 1;
+      }
+      var item = findItem(entry.itemId);
+      var kpId = item ? item.kpId : entry.kpId;
+      if (!kpId) {
+        return;
+      }
+      var box = kpMap[kpId] || (kpMap[kpId] = { total: 0, correct: 0 });
+      box.total += 1;
+      if (entry.correct) {
+        box.correct += 1;
+      }
+    });
+    return { total: rows.length, correct: correct, kpMap: kpMap };
+  }
+
+  function buildReportText() {
+    var now = new Date();
+    var todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    var weekStart = todayStart - 6 * 86400000;
+    var todayStats = collectStats(todayStart);
+    var weekStats = collectStats(weekStart);
+    var lines = [];
+
+    lines.push('青柚学伴 · 学习报告');
+    lines.push(profileName(profiles.active) + ' · ' + formatDate(now) + ' ' +
+      pad2(now.getHours()) + ':' + pad2(now.getMinutes()));
+    lines.push('');
+
+    lines.push('【今天】');
+    if (!todayStats.total) {
+      lines.push('今天还没有做题');
+    } else {
+      lines.push('做题 ' + todayStats.total + ' 道，答对 ' + todayStats.correct +
+        ' 道，正确率 ' + pct(todayStats.correct, todayStats.total) + '%');
+    }
+    lines.push('');
+
+    lines.push('【最近 7 天】');
+    if (!weekStats.total) {
+      lines.push('最近 7 天还没有做题');
+    } else {
+      lines.push('做题 ' + weekStats.total + ' 道，答对 ' + weekStats.correct +
+        ' 道，正确率 ' + pct(weekStats.correct, weekStats.total) + '%');
+      lines.push('覆盖 ' + Object.keys(weekStats.kpMap).length + ' 个考点');
+    }
+    lines.push('');
+
+    var weak = [];
+    Object.keys(weekStats.kpMap).forEach(function (kpId) {
+      var box = weekStats.kpMap[kpId];
+      if (box.total >= 2 && pct(box.correct, box.total) < 60) {
+        weak.push({ kpId: kpId, box: box, rate: pct(box.correct, box.total) });
+      }
+    });
+    weak.sort(function (a, b) {
+      return a.rate - b.rate || b.box.total - a.box.total;
+    });
+
+    lines.push('【需要加强】');
+    if (!weak.length) {
+      lines.push('暂无（做满 2 道以上才会列入）');
+    } else {
+      weak.slice(0, 3).forEach(function (one, index) {
+        lines.push((index + 1) + '. ' + kpName(one.kpId) + ' — 做 ' + one.box.total +
+          ' 道，对 ' + one.box.correct + ' 道（' + one.rate + '%）');
+      });
+    }
+    lines.push('');
+
+    var todayStr = formatDate(now);
+    var pending = 0;
+    var overdue = 0;
+    var learning = 0;
+    (state.records || []).forEach(function (record) {
+      if (record.stage === 'mastered') {
+        return;
+      }
+      if (record.stage === 'learning') {
+        learning += 1;
+        return;
+      }
+      pending += 1;
+      if (record.dueAt && String(record.dueAt) < todayStr) {
+        overdue += 1;
+      }
+    });
+
+    lines.push('【复习安排】');
+    lines.push('待复习 ' + pending + ' 道' + (overdue ? '，其中已逾期 ' + overdue + ' 道' : ''));
+    if (learning) {
+      lines.push('错题台还有 ' + learning + ' 道在「学习中」');
+    }
+    lines.push('');
+
+    return lines.join('\n');
+  }
+
+  function openReport() {
+    var modal = document.getElementById('report-modal');
+    var box = document.getElementById('report-text');
+    if (!modal || !box) {
+      showToast('报告面板没有加载');
+      return;
+    }
+    box.textContent = buildReportText();
+    modal.hidden = false;
+    document.body.classList.add('modal-open');
+    var copyBtn = document.getElementById('report-copy');
+    if (copyBtn) {
+      copyBtn.focus();
+    }
+  }
+
+  function closeReport() {
+    var modal = document.getElementById('report-modal');
+    if (modal) {
+      modal.hidden = true;
+    }
+    document.body.classList.remove('modal-open');
+  }
+
+  function fallbackCopy(text) {
+    try {
+      var area = document.createElement('textarea');
+      area.value = text;
+      area.setAttribute('readonly', '');
+      area.style.position = 'fixed';
+      area.style.top = '-1000px';
+      document.body.appendChild(area);
+      area.select();
+      var ok = document.execCommand('copy');
+      document.body.removeChild(area);
+      return ok;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function copyReport() {
+    var box = document.getElementById('report-text');
+    if (!box) {
+      return;
+    }
+    var text = box.textContent || '';
+    var done = function () {
+      showToast('已复制，去微信粘贴给家长吧');
+    };
+    var fail = function () {
+      showToast('复制失败，请长按文字手动选择复制');
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function () {
+        if (fallbackCopy(text)) {
+          done();
+        } else {
+          fail();
+        }
+      });
+      return;
+    }
+    if (fallbackCopy(text)) {
+      done();
+    } else {
+      fail();
+    }
+  }
+
+  function shareReport() {
+    var box = document.getElementById('report-text');
+    if (!box) {
+      return;
+    }
+    var text = box.textContent || '';
+    if (navigator.share) {
+      navigator.share({ title: '青柚学伴 · 学习报告', text: text }).catch(function () {
+        /* 用户取消分享，忽略 */
+      });
+      return;
+    }
+    copyReport();
+  }
+
   function exportData() {
     var payload = JSON.stringify({
       version: state.version,
@@ -4914,6 +5113,12 @@
   });
 
   document.addEventListener('keydown', function (event) {
+    if (reportModal && !reportModal.hidden) {
+      if (event.key === 'Escape') {
+        closeReport();
+      }
+      return;
+    }
     if (!quizModal.hidden) {
       if (event.key === 'Escape') {
         closeQuiz();
@@ -4964,6 +5169,11 @@
   });
 
   var exportBtn = document.getElementById('export-btn');
+  var reportBtn = document.getElementById('report-btn');
+  var reportModal = document.getElementById('report-modal');
+  var reportClose = document.getElementById('report-close');
+  var reportCopyBtn = document.getElementById('report-copy');
+  var reportShareBtn = document.getElementById('report-share');
   var importBtn = document.getElementById('import-btn');
   var importFile = document.getElementById('import-file');
   var importBankBtn = document.getElementById('import-bank-btn');
@@ -4972,6 +5182,30 @@
 
   if (exportBtn) {
     exportBtn.addEventListener('click', exportData);
+  }
+
+  if (reportBtn) {
+    reportBtn.addEventListener('click', openReport);
+  }
+
+  if (reportClose) {
+    reportClose.addEventListener('click', closeReport);
+  }
+
+  if (reportCopyBtn) {
+    reportCopyBtn.addEventListener('click', copyReport);
+  }
+
+  if (reportShareBtn) {
+    reportShareBtn.addEventListener('click', shareReport);
+  }
+
+  if (reportModal) {
+    reportModal.addEventListener('click', function (event) {
+      if (event.target === reportModal) {
+        closeReport();
+      }
+    });
   }
 
   if (seedBtn) {
