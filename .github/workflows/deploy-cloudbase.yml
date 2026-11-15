@@ -1,0 +1,30 @@
+name: Deploy to CloudBase
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'release/**'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install CloudBase CLI
+        run: npm install -g @cloudbase/cli
+
+      - name: Login
+        env:
+          TCB_API_KEY: ${{ secrets.TCB_API_KEY }}
+        run: tcb login --cloudbase-api-key "$TCB_API_KEY" -e harsh-finch-d4gxc795kab8e3064
+
+      - name: Deploy
+        run: tcb hosting deploy ./release -e harsh-finch-d4gxc795kab8e3064
