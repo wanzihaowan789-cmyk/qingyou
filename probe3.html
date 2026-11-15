@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CloudBase PG 诊断 · 青柚学伴</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 16px;
+      background: #F7F8FC;
+      color: #1F2430;
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    h1 { margin: 0 0 4px; font-size: 18px; }
+    p.tip { margin: 0 0 14px; color: #6B7280; font-size: 13px; }
+    pre {
+      margin: 0;
+      padding: 14px;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(24, 39, 75, 0.06);
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <h1>CloudBase PG 诊断（app.rdb）</h1>
+  <p class="tip">只读 + 一条测试写入。请把整段结果截图发我。</p>
+  <pre id="log">启动中…</pre>
+
+  <script src="https://static.cloudbase.net/cloudbase-js-sdk/latest/cloudbase.full.js"></script>
+  <script>
+    (function () {
+      var ENV = 'harsh-finch-d4gx795kab8e3064';
+      var REGION = 'ap-shanghai';
+      var KEY = [
+        'eyJhbGciOiJSUzI1NiIsImtpZCI6IjVjYjQzYmVjLTQwNzYtNDA0Zi1hZjBiLWNlMGRhOGNhY2IwOSJ9',
+        'eyJpc3MiOiJodHRwczovL2hhcnNoLWZpbmNoLWQ0Z3hjNzk1a2FiOGUzMDY0LmFwLXNoYW5naGFpLnRjYi1hcGkudGVuY2VudGNsb3VkYXBpLmNvbSIsInN1YiI6ImFub24iLCJhdWQiOiJoYXJzaC1maW5jaC1kNGd4Yzc5NWthYjhlMzA2NCIsImV4cCI6NDA5ODQxNTI0NCwiaWF0IjoxNzk0NzMyMDQ0LCJub25jZSI6Ik1DR3R2WUUyUmNLUGlONmx6cjlPOWciLCJhdF9oYXNoIjoiTUNHdHZZRTJSY0tQaU42bHpyOU85ZyIsIm5hbWUiOiJBbm9ueW1vdXMiLCJzY29wZSI6ImFub255bW91cyIsInByb2plY3RfaWQiOiJoYXJzaC1maW5jaC1kNGd4Yzc5NWthYjhlMzA2NCIsIm1ldGEiOnsicGxhdGZvcm0iOiJQdWJsaXNoYWJsZUtleSJ9LCJyb2xlIjoiYW5vbiIsImlzX2Fub255bW91cyI6dHJ1ZSwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiYW5vbnltb3VzIiwicHJvdmlkZXJzIjpbImFub255bW91cyJdfSwidXNlcl9tZXRhZGF0YSI6eyJuYW1lIjoiQW5vbnltb3VzIn0sInVzZXJfdHlwZSI6IiIsImNsaWVudF90eXBlIjoiY2xpZW50X3VzZXIiLCJpc19zeXN0ZW1fYWRtaW4iOmZhbHNlfQ',
+        'hYuqfH9Cx_UC_HulygeTOknC50UevBVOlDX0ZwRsSCmMs1bc2S1DBJQXcElyOfEUO4kQnEVIabje0_YX6isfBtZ7ytSeqDQmq5wsU2wRgRDxLeoDs7rLdgROlFs45nyhYa1gm900UTEnmE_LIE6l9BKr37ehZnOwRVuo5q6Hg2nDvVxze3ydR-VNr_OIHaSa4EUIy7HTJoWTWEWVUPC02cE5kexEh9ywsYCP0nckq1YRfx0xqd8NzokvNBe3cVJFTGlXSyTBgFsGVGCRCXFlTap-HpVUuX2SeT0AltaLcMHUHCvV_x7WZs7PKg3QKboK-dlWe9CQ1yTKEsAgzl2lOw'
+      ].join('.');
+
+      var box = document.getElementById('log');
+      var lines = [];
+
+      function log(text) {
+        lines.push(text);
+        box.textContent = lines.join('\n');
+      }
+
+      function describe(error) {
+        if (!error) {
+          return '未知错误';
+        }
+        var parts = [];
+        if (error.code) { parts.push('code=' + error.code); }
+        if (error.message) { parts.push('message=' + error.message); }
+        if (error.details) { parts.push('details=' + JSON.stringify(error.details)); }
+        return parts.length ? parts.join(' | ') : JSON.stringify(error).slice(0, 300);
+      }
+
+      async function run() {
+        log('环境：' + ENV);
+        if (!window.cloudbase) {
+          log('❌ SDK 未加载');
+          return;
+        }
+        log('✅ SDK 已加载 ' + (cloudbase.SDK_VERSION || ''));
+
+        var app;
+        try {
+          app = cloudbase.init({ env: ENV, region: REGION, accessKey: KEY });
+          log('✅ init 成功');
+        } catch (error) {
+          log('❌ init 失败：' + describe(error));
+          return;
+        }
+
+        if (typeof app.rdb !== 'function') {
+          log('❌ app.rdb 不存在 —— SDK 版本太旧，不支持 PG 模式');
+        } else {
+          log('✅ app.rdb 可用');
+          var db;
+          try {
+            db = app.rdb();
+          } catch (error) {
+            log('❌ app.rdb() 调用失败：' + describe(error));
+          }
+
+          if (db) {
+            try {
+              var read = await db.from('qingyou_progress').select('code').limit(1);
+              log('✅ 读取成功：data=' + JSON.stringify(read.data).slice(0, 160) +
+                ' error=' + describe(read.error && read.error.message ? read.error : null));
+            } catch (error) {
+              log('❌ 读取异常：' + describe(error));
+            }
+
+            try {
+              var write = await db.from('qingyou_probe_pg')
+                .insert({ note: 'probe', at: new Date().toISOString() });
+              log('写入 qingyou_probe_pg：data=' + JSON.stringify(write.data).slice(0, 160) +
+                ' error=' + describe(write.error && write.error.message ? write.error : null));
+            } catch (error) {
+              log('写入异常：' + describe(error));
+            }
+          }
+        }
+
+        log('');
+        log('—— 诊断结束，请截图 ——');
+      }
+
+      run();
+    })();
+  </script>
+</body>
+</html>
