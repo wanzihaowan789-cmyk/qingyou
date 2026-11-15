@@ -898,6 +898,122 @@ body.touch-dragging {
   flex-wrap: wrap;
 }
 
+/* ---------- 多端同步 ---------- */
+#sync-card {
+  margin-top: 12px;
+}
+
+.sync-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sync-row-sub {
+  margin-top: 10px;
+  justify-content: space-between;
+}
+
+.sync-label {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.sync-code {
+  flex: 1 1 160px;
+  min-width: 120px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 14px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.sync-code:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.sync-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.sync-status {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.sync-status.is-ok {
+  color: var(--ok);
+}
+
+.sync-status.is-warn {
+  color: var(--warn);
+}
+
+.build-tag {
+  margin: 4px 0 0;
+  color: #B3B9C4;
+  font-size: 12px;
+}
+
+/* ---------- 新版本提示条 ---------- */
+.update-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 84px;
+  transform: translateX(-50%);
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+  box-shadow: 0 8px 26px rgba(24, 39, 75, 0.16);
+}
+
+.update-bar-text {
+  margin: 0;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.update-bar-close {
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+@media (max-width: 480px) {
+  .update-bar {
+    width: calc(100vw - 24px);
+    gap: 8px;
+  }
+
+  .update-bar-text {
+    font-size: 12px;
+  }
+}
+
 .app-footer .privacy {
   margin: 2px 0 0;
   color: #B3B9C4;
