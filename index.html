@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="description" content="青柚学伴：先补概念洞，再按遗忘曲线复习。">
-  <meta name="qy-build" content="20261115-1538">
+  <meta name="qy-build" content="20261115-1613">
   <title>青柚学伴</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="style.css">
@@ -60,6 +60,12 @@
       <input id="import-bank-file" type="file" accept=".json,application/json" hidden>
     </div>
 
+    <div class="settings-card" id="report-card">
+      <h2 class="settings-title">学习报告</h2>
+      <p class="settings-note">生成一段可复制的文字报告，微信直接发给家长，不用装任何东西。</p>
+      <button id="report-btn" class="btn btn-small" type="button">生成学习报告</button>
+    </div>
+
     <div class="settings-card" id="sync-card">
       <h2 id="sync-title" class="settings-title">多端同步</h2>
       <p class="settings-note" id="sync-note">
@@ -103,6 +109,23 @@
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <div id="report-modal" class="quiz-modal" hidden>
+    <div class="quiz-panel report-panel" role="dialog" aria-modal="true" aria-labelledby="report-title">
+      <div class="quiz-head">
+        <p id="report-title" class="quiz-title">学习报告</p>
+        <button id="report-close" class="quiz-close" type="button" aria-label="关闭报告">×</button>
+      </div>
+      <div class="quiz-body">
+        <pre id="report-text" class="report-text"></pre>
+        <div class="report-actions">
+          <button id="report-copy" class="btn btn-small" type="button">复制文字</button>
+          <button id="report-share" class="btn btn-ghost btn-small" type="button">分享</button>
+        </div>
+        <p class="report-hint">复制后粘贴到微信，或点「分享」直接发给家长。</p>
+      </div>
+    </div>
+  </div>
 
   <script src="data.core.js"></script>
   <script src="app.js"></script>
