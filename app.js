@@ -13,8 +13,8 @@
      填好 url 和 key 后，多端同步才会真正启用；留空时自动退回本机存储。
      ============================================================ */
   var SYNC_CONFIG = {
-    url: '',
-    key: '',
+    url: 'https://harsh-finch-d4gxc795kab8e3064.api.tcloudbasegateway.com/v1/rdb/rest',
+    key: 'eyJhbGciOiJSUzI1NiIsImtpZCI6IjVjYjQzYmVjLTQwNzYtNDA0Zi1hZjBiLWNlMGRhOGNhY2IwOSJ9.eyJpc3MiOiJodHRwczovL2hhcnNoLWZpbmNoLWQ0Z3hjNzk1a2FiOGUzMDY0LmFwLXNoYW5naGFpLnRjYi1hcGkudGVuY2VudGNsb3VkYXBpLmNvbSIsInN1YiI6ImFub24iLCJhdWQiOiJoYXJzaC1maW5jaC1kNGd4Yzc5NWthYjhlMzA2NCIsImV4cCI6NDA5ODQxNTI0NCwiaWF0IjoxNzk0NzMyMDQ0LCJub25jZSI6Ik1DR3R2WUUyUmNLUGlONmx6cjlPOWciLCJhdF9oYXNoIjoiTUNHdHZZRTJSY0tQaU42bHpyOU85ZyIsIm5hbWUiOiJBbm9ueW1vdXMiLCJzY29wZSI6ImFub255bW91cyIsInByb2plY3RfaWQiOiJoYXJzaC1maW5jaC1kNGd4Yzc5NWthYjhlMzA2NCIsIm1ldGEiOnsicGxhdGZvcm0iOiJQdWJsaXNoYWJsZUtleSJ9LCJyb2xlIjoiYW5vbiIsImlzX2Fub255bW91cyI6dHJ1ZSwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiYW5vbnltb3VzIiwicHJvdmlkZXJzIjpbImFub255bW91cyJdfSwidXNlcl9tZXRhZGF0YSI6eyJuYW1lIjoiQW5vbnltb3VzIn0sInVzZXJfdHlwZSI6IiIsImNsaWVudF90eXBlIjoiY2xpZW50X3VzZXIiLCJpc19zeXN0ZW1fYWRtaW4iOmZhbHNlfQ.hYuqfH9Cx_UC_HulygeTOknC50UevBVOlDX0ZwRsSCmMs1bc2S1DBJQXcElyOfEUO4kQnEVIabje0_YX6isfBtZ7ytSeqDQmq5wsU2wRgRDxLeoDs7rLdgROlFs45nyhYa1gm900UTEnmE_LIE6l9BKr37ehZnOwRVuo5q6Hg2nDvVxze3ydR-VNr_OIHaSa4EUIy7HTJoWTWEWVUPC02cE5kexEh9ywsYCP0nckq1YRfx0xqd8NzokvNBe3cVJFTGlXSyTBgFsGVGCRCXFlTap-HpVUuX2SeT0AltaLcMHUHCvV_x7WZs7PKg3QKboK-dlWe9CQ1yTKEsAgzl2lOw',
     table: 'qingyou_progress'
   };
   var SYNC_CODE_KEY = 'qingyou_sync_code_v1';
@@ -845,7 +845,7 @@
     if (!manual && quizModal && !quizModal.hidden) {
       return;
     }
-    var url = SYNC_CONFIG.url + '/rest/v1/' + SYNC_CONFIG.table +
+    var url = SYNC_CONFIG.url + '/' + SYNC_CONFIG.table +
       '?code=eq.' + encodeURIComponent(code) + '&select=state,updated_at';
     if (manual) {
       syncStatus('正在拉取…');
@@ -897,7 +897,7 @@
       state: syncPayload(),
       updated_at: stamp
     }]);
-    fetch(SYNC_CONFIG.url + '/rest/v1/' + SYNC_CONFIG.table, {
+    fetch(SYNC_CONFIG.url + '/' + SYNC_CONFIG.table, {
       method: 'POST',
       headers: syncHeaders({
         'Content-Type': 'application/json',
