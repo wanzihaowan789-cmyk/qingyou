@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="description" content="青柚学伴：先补概念洞，再按遗忘曲线复习。">
+  <meta name="qy-build" content="20261115-1538">
   <title>青柚学伴</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="style.css">
@@ -58,11 +59,34 @@
       <input id="import-file" type="file" accept=".json,application/json" hidden>
       <input id="import-bank-file" type="file" accept=".json,application/json" hidden>
     </div>
+
+    <div class="settings-card" id="sync-card">
+      <h2 id="sync-title" class="settings-title">多端同步</h2>
+      <p class="settings-note" id="sync-note">
+        填入同一个同步码，手机和平板就能共用一份进度。妹妹做题，你这边打开就能看到。
+      </p>
+      <div class="sync-row">
+        <label class="sync-label" for="sync-code">同步码</label>
+        <input id="sync-code" class="sync-code" type="text" inputmode="latin" autocomplete="off"
+          spellcheck="false" maxlength="16" placeholder="例如 QY7K2M9P">
+        <button id="sync-gen" class="btn btn-ghost btn-small" type="button">生成</button>
+        <button id="sync-go" class="btn btn-small" type="button">连接</button>
+      </div>
+      <div class="sync-row sync-row-sub">
+        <label class="sync-toggle">
+          <input id="sync-readonly" type="checkbox">
+          <span>只读模式（只查看，不回写数据）</span>
+        </label>
+        <button id="sync-now" class="btn btn-ghost btn-small" type="button">立即同步</button>
+      </div>
+      <p class="sync-status" id="sync-status" role="status" aria-live="polite">未连接</p>
+    </div>
   </section>
 
   <footer class="app-footer">
     <p>青柚学伴 · 高一数学诊断与复习</p>
     <p class="privacy">每个档案的数据只存在这台设备上，导出的文件请自己保管。</p>
+    <p class="build-tag" id="build-tag">版本 dev</p>
   </footer>
 
   <div id="quiz-modal" class="quiz-modal" hidden>
