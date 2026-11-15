@@ -8,6 +8,22 @@
   var STORAGE_KEY = 'qingyou_state_v1';
   var PROFILES_KEY = 'qingyou_profiles_v1';
 
+  /* ============================================================
+     云端同步配置
+     填好 url 和 key 后，多端同步才会真正启用；留空时自动退回本机存储。
+     ============================================================ */
+  var SYNC_CONFIG = {
+    url: '',
+    key: '',
+    table: 'qingyou_progress'
+  };
+  var SYNC_CODE_KEY = 'qingyou_sync_code_v1';
+  var SYNC_RO_KEY = 'qingyou_sync_ro_v1';
+  var SYNC_TS_KEY = 'qingyou_sync_ts_v1';
+  var syncTimer = null;
+  var syncPullTimer = null;
+  var syncBusy = false;
+
   var tabs = Array.prototype.slice.call(document.querySelectorAll('.tab'));
   var views = Array.prototype.slice.call(document.querySelectorAll('.view'));
   var toastEl = document.getElementById('toast');
@@ -689,11 +705,393 @@
   function saveState() {
     try {
       window.localStorage.setItem(stateKeyFor(profiles.active), JSON.stringify(state));
+      scheduleSync();
       return true;
     } catch (error) {
       showToast('浏览器不允许保存数据，请检查是否禁用了本地存储');
       return false;
     }
+  }
+
+  /* ============================================================
+     多端同步：Supabase REST，不用 SDK，纯 fetch
+     没有配置 url/key 时完全不联网，退回本机存储
+     ============================================================ */
+  function syncEnabled() {
+    return !!(SYNC_CONFIG.url && SYNC_CONFIG.key && window.fetch);
+  }
+
+  function syncCode() {
+    try {
+      return (window.localStorage.getItem(SYNC_CODE_KEY) || '').trim().toUpperCase();
+    } catch (error) {
+      return '';
+    }
+  }
+
+  function syncReadOnly() {
+    try {
+      return window.localStorage.getItem(SYNC_RO_KEY) === '1';
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function syncStamp() {
+    try {
+      return Number(window.localStorage.getItem(SYNC_TS_KEY) || 0);
+    } catch (error) {
+      return 0;
+    }
+  }
+
+  function syncStatus(text, kind) {
+    var node = document.getElementById('sync-status');
+    if (!node) {
+      return;
+    }
+    node.textContent = text;
+    node.className = 'sync-status' + (kind ? ' is-' + kind : '');
+  }
+
+  function syncHeaders(extra) {
+    var headers = {
+      'apikey': SYNC_CONFIG.key,
+      'Authorization': 'Bearer ' + SYNC_CONFIG.key
+    };
+    if (extra) {
+      Object.keys(extra).forEach(function (key) {
+        headers[key] = extra[key];
+      });
+    }
+    return headers;
+  }
+
+  function randomSyncCode() {
+    var alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    var out = 'QY';
+    var i;
+    for (i = 0; i < 6; i += 1) {
+      out += alphabet.charAt(Math.floor(Math.random() * alphabet.length));
+    }
+    return out;
+  }
+
+  function syncPayload() {
+    return {
+      version: 1,
+      profile: state.profile,
+      records: state.records,
+      history: state.history,
+      intervention: state.intervention,
+      interventionHistory: state.interventionHistory,
+      customItems: customItems,
+      profileName: profileName(profiles.active)
+    };
+  }
+
+  function adoptRemote(remote) {
+    var parsed = remote && remote.state;
+    if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.records)) {
+      return false;
+    }
+    var next = {
+      version: 1,
+      profile: parsed.profile && typeof parsed.profile === 'object' ? parsed.profile : {},
+      records: parsed.records,
+      history: Array.isArray(parsed.history) ? parsed.history : [],
+      intervention: parsed.intervention && typeof parsed.intervention === 'object'
+        ? parsed.intervention : null,
+      interventionHistory: Array.isArray(parsed.interventionHistory)
+        ? parsed.interventionHistory : []
+    };
+    try {
+      window.localStorage.setItem(stateKeyFor(profiles.active), JSON.stringify(next));
+      if (Array.isArray(parsed.customItems) && parsed.customItems.length) {
+        parsed.customItems.forEach(function (item) {
+          if (item && item.id && item.id.indexOf('q_custom_') === 0) {
+            var exists = customItems.some(function (one) { return one.id === item.id; });
+            if (!exists) {
+              customItems.push(item);
+            }
+          }
+        });
+        saveCustomItems();
+        mergeCustomItems(customItems);
+      }
+      window.localStorage.setItem(SYNC_TS_KEY, String(Date.parse(remote.updated_at) || Date.now()));
+    } catch (error) {
+      return false;
+    }
+    state = next;
+    return true;
+  }
+
+  function pullSync(manual) {
+    if (!syncEnabled()) {
+      if (manual) {
+        syncStatus('云端同步未启用（需要在代码里填 Supabase 地址和 key）', 'warn');
+      }
+      return;
+    }
+    var code = syncCode();
+    if (!code) {
+      if (manual) {
+        syncStatus('请先填写同步码', 'warn');
+      }
+      return;
+    }
+    /* 答题过程中不打断 */
+    if (!manual && quizModal && !quizModal.hidden) {
+      return;
+    }
+    var url = SYNC_CONFIG.url + '/rest/v1/' + SYNC_CONFIG.table +
+      '?code=eq.' + encodeURIComponent(code) + '&select=state,updated_at';
+    if (manual) {
+      syncStatus('正在拉取…');
+    }
+    fetch(url, { headers: syncHeaders() })
+      .then(function (response) {
+        if (!response.ok) {
+          throw new Error('HTTP ' + response.status);
+        }
+        return response.json();
+      })
+      .then(function (rows) {
+        var remote = rows && rows[0];
+        if (!remote) {
+          if (manual) {
+            syncStatus('云端还没有这份档案，先在妹妹那台设备上同步一次', 'warn');
+          }
+          return;
+        }
+        var remoteAt = Date.parse(remote.updated_at) || 0;
+        if (remoteAt > syncStamp() + 500) {
+          if (adoptRemote(remote)) {
+            renderView(currentView);
+            syncStatus('已同步云端最新进度 · ' + formatDate(new Date(remoteAt)), 'ok');
+            showToast('已同步妹妹的最新进度');
+          }
+        } else if (manual) {
+          syncStatus('已是最新 · ' + formatDate(new Date(remoteAt)), 'ok');
+        }
+      })
+      .catch(function (error) {
+        if (manual) {
+          syncStatus('拉取失败：' + error.message + '（检查网络与配置）', 'warn');
+        }
+      });
+  }
+
+  function pushSync() {
+    if (!syncEnabled() || syncReadOnly()) {
+      return;
+    }
+    var code = syncCode();
+    if (!code) {
+      return;
+    }
+    var stamp = new Date().toISOString();
+    var body = JSON.stringify([{
+      code: code,
+      state: syncPayload(),
+      updated_at: stamp
+    }]);
+    fetch(SYNC_CONFIG.url + '/rest/v1/' + SYNC_CONFIG.table, {
+      method: 'POST',
+      headers: syncHeaders({
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates,return=minimal'
+      }),
+      body: body
+    })
+      .then(function (response) {
+        if (!response.ok) {
+          throw new Error('HTTP ' + response.status);
+        }
+        try {
+          window.localStorage.setItem(SYNC_TS_KEY, String(Date.parse(stamp)));
+        } catch (error) {
+          /* 忽略 */
+        }
+        syncStatus('已同步到云端 · ' + formatDate(new Date()), 'ok');
+      })
+      .catch(function (error) {
+        syncStatus('上传失败：' + error.message, 'warn');
+      });
+  }
+
+  function scheduleSync() {
+    if (!syncEnabled() || syncReadOnly() || !syncCode()) {
+      return;
+    }
+    if (syncTimer) {
+      window.clearTimeout(syncTimer);
+    }
+    syncTimer = window.setTimeout(function () {
+      syncTimer = null;
+      pushSync();
+    }, 1200);
+  }
+
+  function connectSync() {
+    var input = document.getElementById('sync-code');
+    if (!input) {
+      return;
+    }
+    var code = (input.value || '').trim().toUpperCase();
+    if (!code) {
+      syncStatus('同步码不能为空', 'warn');
+      return;
+    }
+    if (!syncEnabled()) {
+      syncStatus('云端同步未启用（需要在代码里填 Supabase 地址和 key）', 'warn');
+      return;
+    }
+    try {
+      window.localStorage.setItem(SYNC_CODE_KEY, code);
+    } catch (error) {
+      syncStatus('浏览器不允许保存同步码', 'warn');
+      return;
+    }
+    input.value = code;
+    syncStatus('已连接 ' + code + '，正在同步…', 'ok');
+    pullSync(true);
+    if (!syncReadOnly()) {
+      window.setTimeout(pushSync, 400);
+    }
+  }
+
+  function initSync() {
+    var input = document.getElementById('sync-code');
+    var genBtn = document.getElementById('sync-gen');
+    var goBtn = document.getElementById('sync-go');
+    var nowBtn = document.getElementById('sync-now');
+    var roBox = document.getElementById('sync-readonly');
+
+    if (!input) {
+      return;
+    }
+    input.value = syncCode();
+    if (roBox) {
+      roBox.checked = syncReadOnly();
+      roBox.addEventListener('change', function () {
+        try {
+          window.localStorage.setItem(SYNC_RO_KEY, roBox.checked ? '1' : '0');
+        } catch (error) {
+          /* 忽略 */
+        }
+        syncStatus(roBox.checked ? '只读模式：只看不写' : '读写模式：本机改动会上传', 'ok');
+      });
+    }
+    if (genBtn) {
+      genBtn.addEventListener('click', function () {
+        var code = randomSyncCode();
+        input.value = code;
+        syncStatus('已生成 ' + code + '，点「连接」启用', 'ok');
+      });
+    }
+    if (goBtn) {
+      goBtn.addEventListener('click', connectSync);
+    }
+    if (nowBtn) {
+      nowBtn.addEventListener('click', function () {
+        pullSync(true);
+      });
+    }
+    input.addEventListener('keydown', function (event) {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        connectSync();
+      }
+    });
+
+    if (!syncEnabled()) {
+      syncStatus('未启用云同步：填入配置后生效，现在数据只在本机', 'warn');
+      return;
+    }
+    if (!syncCode()) {
+      syncStatus('未连接：填一个同步码，或点「生成」', 'warn');
+      return;
+    }
+    syncStatus('已连接 ' + syncCode(), 'ok');
+    pullSync(false);
+    if (syncPullTimer) {
+      window.clearInterval(syncPullTimer);
+    }
+    syncPullTimer = window.setInterval(function () {
+      if (document.visibilityState === 'visible') {
+        pullSync(false);
+      }
+    }, 20000);
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'visible') {
+        pullSync(false);
+      }
+    });
+  }
+
+  /* ============================================================
+     版本标识与更新检查：同一个网址永远是加法，页面自己提示新版
+     ============================================================ */
+  function currentBuild() {
+    var meta = document.querySelector('meta[name="qy-build"]');
+    return meta ? String(meta.getAttribute('content') || 'dev') : 'dev';
+  }
+
+  function initBuildTag() {
+    var tag = document.getElementById('build-tag');
+    if (!tag) {
+      return;
+    }
+    var count = data && Array.isArray(data.items) ? data.items.length : 0;
+    tag.textContent = '版本 ' + currentBuild() + ' · 题库 ' + count + ' 题';
+  }
+
+  function showUpdateBar(build) {
+    if (document.getElementById('update-bar')) {
+      return;
+    }
+    var bar = el('div', 'update-bar');
+    bar.id = 'update-bar';
+    var text = el('p', 'update-bar-text', '有新版本可用：' + build + '，刷新后即生效（进度不受影响）。');
+    var button = el('button', 'btn btn-small', '刷新');
+    button.type = 'button';
+    button.addEventListener('click', function () {
+      var url = window.location.pathname + '?v=' + Date.now();
+      window.location.replace(url);
+    });
+    var close = el('button', 'update-bar-close', '×');
+    close.type = 'button';
+    close.setAttribute('aria-label', '关闭提示');
+    close.addEventListener('click', function () {
+      bar.remove();
+    });
+    bar.appendChild(text);
+    bar.appendChild(button);
+    bar.appendChild(close);
+    document.body.appendChild(bar);
+  }
+
+  function checkUpdate() {
+    if (!window.fetch || !window.location.protocol.match(/^https?:/)) {
+      return;
+    }
+    fetch('version.json?t=' + Date.now(), { cache: 'no-store' })
+      .then(function (response) {
+        if (!response.ok) {
+          throw new Error('HTTP ' + response.status);
+        }
+        return response.json();
+      })
+      .then(function (info) {
+        if (info && info.build && info.build !== currentBuild()) {
+          showUpdateBar(info.build);
+        }
+      })
+      .catch(function () {
+        /* 离线或没有 version.json 时静默 */
+      });
   }
 
   function showToast(message) {
@@ -4636,5 +5034,10 @@
     return added;
   };
 
+  initBuildTag();
+  initSync();
+  checkUpdate();
+
+  /* 每次打开都回到「今日」首页，未做完的题留在列表里，不直接进答题层 */
   switchView('today');
 })();
