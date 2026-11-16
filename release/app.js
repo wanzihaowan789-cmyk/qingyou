@@ -1093,8 +1093,8 @@
     if (!tag) {
       return;
     }
-    var count = data && Array.isArray(data.items) ? data.items.length : 0;
-    var text = '版本 ' + currentBuild() + ' · 题库 ' + count + ' 题';
+    /* 页脚只显示版本，不公开题库规模 */
+    var text = '版本 ' + currentBuild();
     /* 只读且没指定档案时，不显示自己的码，避免误认 */
     if (!syncReadOnly() || urlParam('u')) {
       text += ' · 档案 ' + syncCode();
