@@ -3429,3 +3429,42 @@ textarea:focus-visible {
     padding-bottom: calc(18px + env(safe-area-inset-bottom));
   }
 }
+
+/* ---- 10. 错题台：点选移动（拖拽的替代方式，手机上更好用） ---- */
+.board-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.board-move {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 5px 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--muted);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.board-move:hover:not(:disabled) {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
+.board-move:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+}
+
+.board-move.is-current {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  color: var(--brand-dark);
+  cursor: default;
+}

@@ -3043,10 +3043,46 @@
       meta += ' · 到期 ' + record.dueAt;
     }
     card.appendChild(el('p', 'board-card-meta', meta));
+    card.appendChild(buildCardActions(record));
 
     bindNativeDrag(card, record);
     bindTouchDrag(card, record);
     return card;
+  }
+
+  /* 手机上长按拖过三栏很费劲，补一排点选按钮；落点逻辑与拖拽共用 handleDrop */
+  function buildCardActions(record) {
+    var row = el('div', 'board-card-actions');
+    var current = columnOf(record.stage);
+    var targets = [
+      { key: 'todo', label: '待复习' },
+      { key: 'doing', label: '复习中' },
+      { key: 'done', label: '已掌握' }
+    ];
+
+    // 按钮上的触摸不要触发卡片的长按拖拽
+    row.addEventListener('touchstart', function (event) {
+      event.stopPropagation();
+    }, { passive: true });
+    row.addEventListener('mousedown', function (event) {
+      event.stopPropagation();
+    });
+
+    targets.forEach(function (target) {
+      var btn = el('button', 'board-move', target.label);
+      btn.type = 'button';
+      if (current === target.key) {
+        btn.classList.add('is-current');
+        btn.disabled = true;
+        btn.setAttribute('aria-current', 'true');
+      }
+      btn.addEventListener('click', function (event) {
+        event.stopPropagation();
+        handleDrop(record.id, target.key);
+      });
+      row.appendChild(btn);
+    });
+    return row;
   }
 
   function clearColumnHighlight() {
