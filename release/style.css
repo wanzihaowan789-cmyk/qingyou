@@ -3468,3 +3468,126 @@ textarea:focus-visible {
   color: var(--brand-dark);
   cursor: default;
 }
+
+/* ---- 11. 练习小结卡：练完一组立刻给反馈 ---- */
+.quiz-summary {
+  text-align: center;
+}
+
+.quiz-summary-score {
+  margin: 4px 0 2px;
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--brand);
+}
+
+.quiz-summary-line {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.quiz-summary-bar {
+  height: 8px;
+  margin-bottom: 16px;
+  border-radius: 999px;
+  background: var(--line-soft);
+  overflow: hidden;
+}
+
+.quiz-summary-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--brand), #4FA08D);
+  transition: width 0.3s;
+}
+
+.quiz-summary-list {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+  text-align: left;
+}
+
+.quiz-summary-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  font-size: 13px;
+}
+
+.quiz-summary-item + .quiz-summary-item {
+  margin-top: 6px;
+}
+
+.quiz-summary-no {
+  flex: 0 0 auto;
+  color: var(--faint);
+  font-size: 12px;
+}
+
+.quiz-summary-kp {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text);
+}
+
+.quiz-summary-mark {
+  flex: 0 0 auto;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.quiz-summary-item.is-right .quiz-summary-mark {
+  color: var(--ok);
+  background: #E6F2EC;
+}
+
+.quiz-summary-item.is-wrong .quiz-summary-mark {
+  color: var(--danger);
+  background: #FFF6F6;
+}
+
+.quiz-summary-help {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  background: var(--brand-soft);
+  text-align: left;
+}
+
+.quiz-summary-help-title {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.quiz-summary-help-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+  font-size: 13px;
+}
+
+.quiz-summary-help-row .video-link {
+  flex: 0 0 auto;
+}
+
+.quiz-summary-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.quiz-summary-actions .btn {
+  flex: 1 1 0;
+}

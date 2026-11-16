@@ -4673,6 +4673,7 @@
     quiz.index = 0;
     quiz.selected = null;
     quiz.answered = false;
+    quiz.results = [];
     quiz.returnView = settings.returnView || 'cards';
     quiz.masteryRecordId = null;
     quiz.masteryPassed = false;
@@ -4872,6 +4873,12 @@
     var resultWrap = el('div', 'quiz-result');
     var correct = isAnswerCorrect(item, userAnswer);
 
+    /* 记录本组每一题的对错，做完后给出小结（参考洋葱的即时反馈） */
+    if (!quiz.results) {
+      quiz.results = [];
+    }
+    quiz.results.push({ itemId: item.id, kpId: item.kpId, correct: correct });
+
     if (correct) {
       renderCorrect(item, resultWrap);
     } else if (item.type === 'choice' || item.type === 'judge' || item.type === 'multi') {
@@ -5028,6 +5035,15 @@
   }
 
   function finishQuiz() {
+    /* 掌握度测试保持原来的即时收尾；普通练习先给一张本组小结 */
+    if (quiz.masteryRecordId || !quiz.results || !quiz.results.length) {
+      completeQuiz();
+      return;
+    }
+    renderQuizSummary();
+  }
+
+  function completeQuiz() {
     var returnView = quiz.returnView;
     var masteryRecordId = quiz.masteryRecordId;
     var masteryPassed = quiz.masteryPassed;
@@ -5042,6 +5058,79 @@
     } else {
       showNotice('已记录');
     }
+  }
+
+  /* 练完一组立刻给反馈：对了几题、错在哪、下一步做什么 */
+  function renderQuizSummary() {
+    var total = quiz.results.length;
+    var correct = 0;
+    var wrongKps = [];
+    quiz.results.forEach(function (entry) {
+      if (entry.correct) {
+        correct += 1;
+      } else if (wrongKps.indexOf(entry.kpId) < 0) {
+        wrongKps.push(entry.kpId);
+      }
+    });
+
+    quizTitle.textContent = '本组小结';
+    quizProgress.textContent = '共 ' + total + ' 题 · 答对 ' + correct + ' 题';
+    quizBody.textContent = '';
+
+    var box = el('div', 'quiz-summary');
+    var rate = total ? Math.round(correct / total * 100) : 0;
+
+    box.appendChild(el('p', 'quiz-summary-score', correct + ' / ' + total));
+    box.appendChild(el('p', 'quiz-summary-line',
+      correct === total
+        ? '全部答对，这组掌握得不错。'
+        : correct === 0
+          ? '这组全错了，先回概念卡把定义看明白，再来一组。'
+          : '错的那几道看完解析，再练一组巩固一下。'));
+
+    var bar = el('div', 'quiz-summary-bar');
+    var fill = el('span', 'quiz-summary-fill');
+    fill.style.width = rate + '%';
+    bar.appendChild(fill);
+    box.appendChild(bar);
+
+    var list = el('ul', 'quiz-summary-list');
+    quiz.results.forEach(function (entry, index) {
+      var li = el('li', 'quiz-summary-item' + (entry.correct ? ' is-right' : ' is-wrong'));
+      li.appendChild(el('span', 'quiz-summary-no', '第 ' + (index + 1) + ' 题'));
+      li.appendChild(el('span', 'quiz-summary-kp', kpName(entry.kpId)));
+      li.appendChild(el('span', 'quiz-summary-mark', entry.correct ? '对' : '错'));
+      list.appendChild(li);
+    });
+    box.appendChild(list);
+
+    if (wrongKps.length) {
+      var help = el('div', 'quiz-summary-help');
+      help.appendChild(el('p', 'quiz-summary-help-title', '错的考点，先看讲解再练'));
+      wrongKps.forEach(function (kpId) {
+        var row = el('div', 'quiz-summary-help-row');
+        row.appendChild(el('span', 'quiz-summary-kp', kpName(kpId)));
+        row.appendChild(buildVideoLink(kpId, '看视频'));
+        help.appendChild(row);
+      });
+      box.appendChild(help);
+    }
+
+    var actions = el('div', 'quiz-summary-actions');
+    var again = el('button', 'btn btn-small', '再练一组');
+    again.type = 'button';
+    again.addEventListener('click', function () {
+      var kpId = wrongKps.length ? wrongKps[0] : quiz.results[0].kpId;
+      openQuiz(kpId, { returnView: quiz.returnView });
+    });
+    var done = el('button', 'btn btn-ghost btn-small', '完成');
+    done.type = 'button';
+    done.addEventListener('click', completeQuiz);
+    actions.appendChild(again);
+    actions.appendChild(done);
+    box.appendChild(actions);
+
+    quizBody.appendChild(box);
   }
 
   /* ============================================================
