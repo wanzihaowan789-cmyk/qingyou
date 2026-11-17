@@ -9,8 +9,9 @@
  * 2. 前端只调用本函数，不再直接访问数据库，因此 anon key 不再暴露在页面上。
  * 3. 激活码可在云端随时停用（enabled=false）或限量（maxUses）。
  */
-const REST_URL = process.env.QY_REST_URL;
-const API_KEY = process.env.QY_KEY;
+/* 优先用环境变量；缺失时回退到内置值，保证函数始终可用 */
+const REST_URL = process.env.QY_REST_URL || 'https://harsh-finch-d4gxc795kab8e3064.api.tcloudbasegateway.com/v1/rdb/rest';
+const API_KEY = process.env.QY_KEY || 'eyJhbGciOiJSUzI1NiIsImtpZCI6IjVjYjQzYmVjLTQwNzYtNDA0Zi1hZjBiLWNlMGRhOGNhY2IwOSJ9.eyJpc3MiOiJodHRwczovL2hhcnNoLWZpbmNoLWQ0Z3hjNzk1a2FiOGUzMDY0LmFwLXNoYW5naGFpLnRjYi1hcGkudGVuY2VudGNsb3VkYXBpLmNvbSIsInN1YiI6ImFub24iLCJhdWQiOiJoYXJzaC1maW5jaC1kNGd4Yzc5NWthYjhlMzA2NCIsImV4cCI6NDA5ODQxNTI0NCwiaWF0IjoxNzk0NzMyMDQ0LCJub25jZSI6Ik1DR3R2WUUyUmNLUGlONmx6cjlPOWciLCJhdF9oYXNoIjoiTUNHdHZZRTJSY0tQaU42bHpyOU85ZyIsIm5hbWUiOiJBbm9ueW1vdXMiLCJzY29wZSI6ImFub255bW91cyIsInByb2plY3RfaWQiOiJoYXJzaC1maW5jaC1kNGd4Yzc5NWthYjhlMzA2NCIsIm1ldGEiOnsicGxhdGZvcm0iOiJQdWJsaXNoYWJsZUtleSJ9LCJyb2xlIjoiYW5vbiIsImlzX2Fub255bW91cyI6dHJ1ZSwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiYW5vbnltb3VzIiwicHJvdmlkZXJzIjpbImFub255bW91cyJdfSwidXNlcl9tZXRhZGF0YSI6eyJuYW1lIjoiQW5vbnltb3VzIn0sInVzZXJfdHlwZSI6IiIsImNsaWVudF90eXBlIjoiY2xpZW50X3VzZXIiLCJpc19zeXN0ZW1fYWRtaW4iOmZhbHNlfQ.hYuqfH9Cx_UC_HulygeTOknC50UevBVOlDX0ZwRsSCmMs1bc2S1DBJQXcElyOfEUO4kQnEVIabje0_YX6isfBtZ7ytSeqDQmq5wsU2wRgRDxLeoDs7rLdgROlFs45nyhYa1gm900UTEnmE_LIE6l9BKr37ehZnOwRVuo5q6Hg2nDvVxze3ydR-VNr_OIHaSa4EUIy7HTJoWTWEWVUPC02cE5kexEh9ywsYCP0nckq1YRfx0xqd8NzokvNBe3cVJFTGlXSyTBgFsGVGCRCXFlTap-HpVUuX2SeT0AltaLcMHUHCvV_x7WZs7PKg3QKboK-dlWe9CQ1yTKEsAgzl2lOw';
 
 const ACT = '__ACT__';
 const SES = '__SES__';
@@ -174,7 +175,8 @@ exports.main = async (event) => {
       result = { ok: false, error: '未知操作' };
     }
   } catch (err) {
-    result = { ok: false, error: '服务异常：' + err.message };
+    var hint = (!API_KEY || !REST_URL) ? '（配置缺失，请检查函数环境变量）' : '';
+    result = { ok: false, error: '服务异常：' + err.message + hint };
   }
 
   return {
