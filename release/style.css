@@ -3591,3 +3591,36 @@ textarea:focus-visible {
 .quiz-summary-actions .btn {
   flex: 1 1 0;
 }
+
+/* ---- 12. 激活面板 ---- */
+.act-panel {
+  max-width: 380px;
+}
+
+.act-tip {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.act-label {
+  display: block;
+  margin: 10px 0 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.act-panel .sync-code {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.act-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+.act-actions .btn {
+  min-width: 96px;
+}
