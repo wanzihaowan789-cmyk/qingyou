@@ -5,29 +5,50 @@ on:
     branches: [main]
     paths:
       - 'release/**'
+      - 'cloudfunctions/**'
+      - 'cloudbaserc.json'
+      - '.github/workflows/deploy-cloudbase.yml'
   workflow_dispatch:
+
+concurrency:
+  group: deploy-cloudbase
+  cancel-in-progress: true
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '20'
 
       - name: Install CloudBase CLI
-        run: npm install -g @cloudbase/cli@3.9.2
+        run: npm install -g @cloudbase/cli
 
-      - name: Login
+      - name: Show files to deploy
+        run: ls -la ./release
+
+      - name: Login to CloudBase
         env:
           TCB_API_KEY: ${{ secrets.TCB_API_KEY }}
-          CI: 'true'
         run: |
-          echo "key length: ${#TCB_API_KEY}"
           tcb login --cloudbase-api-key "$TCB_API_KEY" -e harsh-finch-d4gxc795kab8e3064
 
-      - name: Deploy
-        run: tcb hosting deploy ./release -e harsh-finch-d4gxc795kab8e3064 --retry-count 3
+      - name: Deploy cloud function
+        run: |
+          tcb fn deploy qyAuth -e harsh-finch-d4gxc795kab8e3064 --force || echo "::warning::云函数部署失败，静态站不受影响"
+
+      - name: Deploy static files
+        run: |
+          tcb hosting deploy ./release -e harsh-finch-d4gxc795kab8e3064
+
+      - name: Summary
+        run: |
+          echo "### 部署完成" >> $GITHUB_STEP_SUMMARY
+          echo "站点：https://harsh-finch-d4gxc795kab8e3064-1532886059.tcloudbaseapp.com" >> $GITHUB_STEP_SUMMARY
+          cat ./release/version.json >> $GITHUB_STEP_SUMMARY
