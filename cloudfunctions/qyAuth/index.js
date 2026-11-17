@@ -134,6 +134,17 @@ async function putProgress(payload) {
 }
 
 exports.main = async (event) => {
+  const CORS = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+  };
+
+  /* 浏览器预检直接放行 */
+  if (event && (event.httpMethod === 'OPTIONS' || event.method === 'OPTIONS')) {
+    return { statusCode: 204, headers: CORS, body: '' };
+  }
+
   let body = event || {};
   if (typeof body === 'string') {
     try {
@@ -168,7 +179,7 @@ exports.main = async (event) => {
 
   return {
     statusCode: 200,
-    headers: { 'Content-Type': 'application/json; charset=utf-8' },
+    headers: Object.assign({ 'Content-Type': 'application/json; charset=utf-8' }, CORS),
     body: JSON.stringify(result),
   };
 };
