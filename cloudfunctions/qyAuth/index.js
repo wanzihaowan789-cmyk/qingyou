@@ -13,8 +13,51 @@
 const REST_URL = process.env.QY_REST_URL || 'https://harsh-finch-d4gxc795kab8e3064.api.tcloudbasegateway.com/v1/rdb/rest';
 const API_KEY = process.env.QY_KEY || 'eyJhbGciOiJSUzI1NiIsImtpZCI6IjVjYjQzYmVjLTQwNzYtNDA0Zi1hZjBiLWNlMGRhOGNhY2IwOSJ9.eyJpc3MiOiJodHRwczovL2hhcnNoLWZpbmNoLWQ0Z3hjNzk1a2FiOGUzMDY0LmFwLXNoYW5naGFpLnRjYi1hcGkudGVuY2VudGNsb3VkYXBpLmNvbSIsInN1YiI6ImFub24iLCJhdWQiOiJoYXJzaC1maW5jaC1kNGd4Yzc5NWthYjhlMzA2NCIsImV4cCI6NDA5ODQxNTI0NCwiaWF0IjoxNzk0NzMyMDQ0LCJub25jZSI6Ik1DR3R2WUUyUmNLUGlONmx6cjlPOWciLCJhdF9oYXNoIjoiTUNHdHZZRTJSY0tQaU42bHpyOU85ZyIsIm5hbWUiOiJBbm9ueW1vdXMiLCJzY29wZSI6ImFub255bW91cyIsInByb2plY3RfaWQiOiJoYXJzaC1maW5jaC1kNGd4Yzc5NWthYjhlMzA2NCIsIm1ldGEiOnsicGxhdGZvcm0iOiJQdWJsaXNoYWJsZUtleSJ9LCJyb2xlIjoiYW5vbiIsImlzX2Fub255bW91cyI6dHJ1ZSwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiYW5vbnltb3VzIiwicHJvdmlkZXJzIjpbImFub255bW91cyJdfSwidXNlcl9tZXRhZGF0YSI6eyJuYW1lIjoiQW5vbnltb3VzIn0sInVzZXJfdHlwZSI6IiIsImNsaWVudF90eXBlIjoiY2xpZW50X3VzZXIiLCJpc19zeXN0ZW1fYWRtaW4iOmZhbHNlfQ.hYuqfH9Cx_UC_HulygeTOknC50UevBVOlDX0ZwRsSCmMs1bc2S1DBJQXcElyOfEUO4kQnEVIabje0_YX6isfBtZ7ytSeqDQmq5wsU2wRgRDxLeoDs7rLdgROlFs45nyhYa1gm900UTEnmE_LIE6l9BKr37ehZnOwRVuo5q6Hg2nDvVxze3ydR-VNr_OIHaSa4EUIy7HTJoWTWEWVUPC02cE5kexEh9ywsYCP0nckq1YRfx0xqd8NzokvNBe3cVJFTGlXSyTBgFsGVGCRCXFlTap-HpVUuX2SeT0AltaLcMHUHCvV_x7WZs7PKg3QKboK-dlWe9CQ1yTKEsAgzl2lOw';
 
+const https = require('https');
+
 const ACT = '__ACT__';
 const SES = '__SES__';
+
+/* Node 16 运行时没有全局 fetch，这里用内置 https 发请求 */
+function httpJson(url, options, payload) {
+  return new Promise(function (resolve, reject) {
+    const target = new URL(url);
+    const req = https.request(
+      {
+        hostname: target.hostname,
+        path: target.pathname + target.search,
+        method: (options && options.method) || 'GET',
+        headers: (options && options.headers) || {},
+        timeout: 15000,
+      },
+      function (res) {
+        let data = '';
+        res.on('data', function (chunk) {
+          data += chunk;
+        });
+        res.on('end', function () {
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            try {
+              resolve(data ? JSON.parse(data) : null);
+            } catch (err) {
+              resolve(null);
+            }
+          } else {
+            reject(new Error('HTTP ' + res.statusCode));
+          }
+        });
+      }
+    );
+    req.on('timeout', function () {
+      req.destroy(new Error('请求超时'));
+    });
+    req.on('error', reject);
+    if (payload) {
+      req.write(payload);
+    }
+    req.end();
+  });
+}
 
 function headers(extra) {
   return Object.assign(
@@ -25,23 +68,15 @@ function headers(extra) {
 
 async function readState(code) {
   const url = REST_URL + '/qingyou_progress?code=eq.' + encodeURIComponent(code) + '&select=state,updated_at';
-  const res = await fetch(url, { headers: headers() });
-  if (!res.ok) {
-    throw new Error('读取失败 HTTP ' + res.status);
-  }
-  const rows = await res.json();
-  return rows && rows[0] ? rows[0] : null;
+  const rows = await httpJson(url, { headers: headers() });
+  return Array.isArray(rows) && rows[0] ? rows[0] : null;
 }
 
 async function writeState(code, state, updatedAt) {
-  const res = await fetch(REST_URL + '/qingyou_progress', {
+  await httpJson(REST_URL + '/qingyou_progress', {
     method: 'POST',
     headers: headers({ Prefer: 'resolution=merge-duplicates,return=minimal' }),
-    body: JSON.stringify([{ code: code, state: state, updated_at: updatedAt || new Date().toISOString() }]),
-  });
-  if (!res.ok) {
-    throw new Error('写入失败 HTTP ' + res.status);
-  }
+  }, JSON.stringify([{ code: code, state: state, updated_at: updatedAt || new Date().toISOString() }]));
 }
 
 function randomToken() {
