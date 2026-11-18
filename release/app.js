@@ -2748,6 +2748,17 @@
         typeRow.appendChild(chip);
       });
       bar.appendChild(typeRow);
+
+      var smart = el('button', 'practice-smart' + (smartPick ? ' is-on' : ''),
+        smartPick ? '按错因出题 · 开' : '按错因出题 · 关');
+      smart.type = 'button';
+      smart.title = '打开后优先抽最近错题对应考点的题，关闭则按普通模块抽题';
+      smart.addEventListener('click', function () {
+        smartPick = !smartPick;
+        renderToday();
+      });
+      bar.appendChild(smart);
+
       host.insertBefore(bar, host.firstChild);
     }
     host.textContent = '';
@@ -4518,6 +4529,13 @@
         hostEl.insertBefore(note, hostEl.firstChild);
       }
     }
+    var commercial = document.getElementById('commercial-note');
+    if (!commercial && hostEl) {
+      var note2 = el('p', 'commercial-note',
+        '后续正式商用时，档案码将统一下架，需要月卡才能使用全部功能；当前为试用阶段。');
+      hostEl.appendChild(note2);
+      note2.id = 'commercial-note';
+    }
     var host = document.getElementById('profile-content');
     if (!host) {
       return;
@@ -4797,6 +4815,44 @@
   var practiceTypes = { choice: true, multi: true, judge: true, fill: true, solve: false };
   var endlessStats = { total: 0, wrong: 0 };
 
+  /* 按错因智能出题：默认关闭，打开后优先抽最近错题对应考点的题 */
+  var smartPick = false;
+
+  function weakKpWeights() {
+    var weights = {};
+    state.records.forEach(function (record) {
+      if (record.stage === 'mastered') {
+        return;
+      }
+      var weight = weights[record.kpId] || 0;
+      if (record.layer === 'L0') {
+        weight += 3;
+      } else if (record.layer === 'L1') {
+        weight += 2;
+      } else {
+        weight += 1;
+      }
+      weights[record.kpId] = weight;
+    });
+    return weights;
+  }
+
+  function applySmartPool(pool) {
+    if (!smartPick) {
+      return pool;
+    }
+    var weights = weakKpWeights();
+    var weighted = [];
+    pool.forEach(function (item) {
+      var weight = weights[item.kpId] || 0;
+      for (var i = 0; i < weight; i += 1) {
+        weighted.push(item);
+      }
+    });
+    /* 没有可加权的历史错题时退回普通抽题 */
+    return weighted.length ? weighted : pool;
+  }
+
   function typeAllowed(item) {
     return practiceTypes[item.type] !== false;
   }
@@ -4846,6 +4902,7 @@
       pool[k] = pool[idx];
       pool[idx] = t;
     }
+    pool = applySmartPool(pool);
     var batch = pool.slice(0, 5);
     if (!batch.length) {
       showToast('当前题型下暂时没有可练的题，试试换一种题型');
@@ -4864,6 +4921,7 @@
       }
       pool.push(item);
     }
+    pool = applySmartPool(pool);
     if (!pool.length) {
       showToast('当前题型下没有可练的题');
       return;
