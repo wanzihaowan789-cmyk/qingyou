@@ -4979,7 +4979,8 @@
 
   function openQuiz(kpId, options) {
     var settings = options || {};
-    if (!kpUnlocked(kpId)) {
+    /* 年级拦截只针对"按考点抽新题"；错题复习、掌握度测试这类指定了题目的请求放行 */
+    if (!kpUnlocked(kpId) && !(settings.items && settings.items.length)) {
       showToast(kpGrade(kpId) + '暂未开放，本次先开放高一');
       return;
     }
