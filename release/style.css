@@ -3624,3 +3624,100 @@ textarea:focus-visible {
 .act-actions .btn {
   min-width: 96px;
 }
+
+/* ---- 13. 练习模式与题型 ---- */
+.practice-controls {
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--card);
+}
+
+.practice-mode-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.practice-mode {
+  flex: 1 1 0;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.practice-mode.is-on {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  color: var(--brand-dark);
+  font-weight: 600;
+}
+
+.practice-type-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.practice-type {
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--faint);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.practice-type.is-on {
+  border-color: var(--brand);
+  color: var(--brand);
+  background: var(--brand-soft);
+}
+
+/* ---- 年级锁定：高二高三暂未开放 ---- */
+.card.is-locked {
+  opacity: 0.55;
+}
+
+.card.is-locked .btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* ---- 画像阈值提示 ---- */
+.profile-hint {
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  background: var(--brand-soft);
+}
+
+.profile-hint-title {
+  margin: 0 0 4px;
+  color: var(--brand-dark);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.profile-hint-text {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* ---- 练习小结鼓励语 ---- */
+.quiz-summary-cheer {
+  margin: 0 0 14px;
+  color: var(--brand);
+  font-size: 14px;
+  font-weight: 600;
+}

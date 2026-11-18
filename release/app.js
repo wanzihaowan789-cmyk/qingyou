@@ -731,14 +731,96 @@
   }
 
   /* 每台新设备自动分配一个独立档案码，老设备沿用原有码 */
+  function deviceId() {
+    try {
+      var id = window.localStorage.getItem('qy_device_id');
+      if (!id) {
+        id = 'D' + Math.random().toString(36).slice(2, 10).toUpperCase();
+        window.localStorage.setItem('qy_device_id', id);
+      }
+      return id;
+    } catch (error) {
+      return 'D-UNKNOWN';
+    }
+  }
+
   function ensureSyncCode() {
     var code = hasLocalData() ? SYNC_DEFAULT_CODE : randomSyncCode();
     try {
       window.localStorage.setItem(SYNC_CODE_KEY, code);
+      /* 档案码首次生成即绑定本机，之后换设备会提示换回原设备 */
+      window.localStorage.setItem('qy_bind_' + code, deviceId());
     } catch (error) {
       /* 忽略 */
     }
     return code;
+  }
+
+  /* 换设备使用同一个档案码时给出提示，并停止上传，避免覆盖原设备进度 */
+  function checkDeviceBinding() {
+    var code = syncCode();
+    if (!code) {
+      return;
+    }
+    var bound = '';
+    try {
+      bound = window.localStorage.getItem('qy_bind_' + code) || '';
+    } catch (error) {
+      bound = '';
+    }
+    if (!bound) {
+      try {
+        window.localStorage.setItem('qy_bind_' + code, deviceId());
+      } catch (error) {
+        /* 忽略 */
+      }
+      return;
+    }
+    if (bound !== deviceId()) {
+      var modal = document.getElementById('act-modal');
+      var title = document.getElementById('act-title');
+      var tip = document.querySelector('.act-tip');
+      var codeInput = document.getElementById('act-code');
+      var oldInput = document.getElementById('act-old');
+      var go = document.getElementById('act-go');
+      if (modal && title && tip) {
+        title.textContent = '请换回原设备使用';
+        tip.textContent = '档案 ' + code + ' 已绑定另一台设备。为避免两台设备互相覆盖学习进度，请回到原来那台设备上继续学习。';
+        if (codeInput) { codeInput.style.display = 'none'; }
+        if (oldInput) { oldInput.style.display = 'none'; }
+        if (go) {
+          go.textContent = '我知道了';
+          go.onclick = function () {
+            modal.hidden = true;
+            document.body.classList.remove('modal-open');
+          };
+        }
+        modal.hidden = false;
+        document.body.classList.add('modal-open');
+      }
+      try {
+        window.localStorage.setItem(SYNC_RO_KEY, '1');
+      } catch (error) {
+        /* 忽略 */
+      }
+    }
+  }
+
+  /* 年级分级：本次只开放高一，其余显示暂未开放 */
+  var GRADE_OF_KP = {
+    K1: '高一上', K2: '高一上', K3: '高一上', K4: '高一上', K5: '高一上',
+    K6: '高一下', K7: '高一下', K8: '高一下', K9: '高一下', K10: '高一下',
+    K11: '高二', K12: '高二', K13: '高二', K14: '高二',
+    K15: '高三', K16: '高三', K17: '高三', K18: '高三'
+  };
+  var ACTIVE_GRADES = ['高一上', '高一下'];
+
+  function kpGrade(kpId) {
+    return GRADE_OF_KP[String(kpId || '').split('.')[0]] || '高二';
+  }
+
+  function kpUnlocked(kpId) {
+    return ACTIVE_GRADES.indexOf(kpGrade(kpId)) >= 0;
   }
 
   function syncCode() {
@@ -1004,6 +1086,7 @@
   }
 
   function initSync() {
+    checkDeviceBinding();
     var input = document.getElementById('sync-code');
     var genBtn = document.getElementById('sync-gen');
     var goBtn = document.getElementById('sync-go');
@@ -2208,8 +2291,12 @@
         ? '基础达标 · 中档已解锁'
         : '还差 ' + cardProgress.remaining + ' 道达标'));
 
-    var practice = el('button', 'btn btn-primary btn-small', '去练 2 道');
+    var practice = el('button', 'btn btn-primary btn-small', kpUnlocked(card.kpId) ? '去练 2 道' : '暂未开放');
     practice.type = 'button';
+    if (!kpUnlocked(card.kpId)) {
+      practice.disabled = true;
+      article.classList.add('is-locked');
+    }
     practice.addEventListener('click', function (event) {
       event.stopPropagation();
       openQuiz(card.kpId, { returnView: 'cards' });
@@ -2579,6 +2666,12 @@
       showToast('题库还在加载，稍等一下');
       return;
     }
+    if (practiceMode === 'endless') {
+      startEndlessRound();
+      return;
+    }
+    startDailyFive();
+    return;
     var queue = dueQueue();
     var items = [];
     var i;
@@ -2621,6 +2714,41 @@
     var host = document.getElementById('today-content');
     if (!host) {
       return;
+    }
+    if (!host.querySelector('.practice-controls')) {
+      var bar = el('div', 'practice-controls');
+
+      var modeRow = el('div', 'practice-mode-row');
+      var modes = [
+        { id: 'daily', label: '每日 5 题' },
+        { id: 'endless', label: '无尽模式' }
+      ];
+      modes.forEach(function (mode) {
+        var btn = el('button', 'practice-mode' + (practiceMode === mode.id ? ' is-on' : ''), mode.label);
+        btn.type = 'button';
+        btn.addEventListener('click', function () {
+          practiceMode = mode.id;
+          renderToday();
+        });
+        modeRow.appendChild(btn);
+      });
+      bar.appendChild(modeRow);
+
+      var typeRow = el('div', 'practice-type-row');
+      var types = [
+        ['choice', '单选'], ['multi', '多选'], ['judge', '判断'], ['fill', '填空'], ['solve', '解答']
+      ];
+      types.forEach(function (pair) {
+        var chip = el('button', 'practice-type' + (practiceTypes[pair[0]] ? ' is-on' : ''), pair[1]);
+        chip.type = 'button';
+        chip.addEventListener('click', function () {
+          practiceTypes[pair[0]] = !practiceTypes[pair[0]];
+          renderToday();
+        });
+        typeRow.appendChild(chip);
+      });
+      bar.appendChild(typeRow);
+      host.insertBefore(bar, host.firstChild);
     }
     host.textContent = '';
     host.classList.remove('today-empty');
@@ -4366,6 +4494,30 @@
   }
 
   function renderProfile() {
+    var hostEl = document.getElementById('profile-content');
+    if (hostEl) {
+      var total = state.history.length;
+      var kpSet = {};
+      state.history.forEach(function (entry) {
+        var item = findItem(entry.itemId);
+        var kpId = item ? item.kpId : entry.kpId;
+        if (kpId) {
+          kpSet[kpId] = true;
+        }
+      });
+      var kpCount = Object.keys(kpSet).length;
+      if (total < 30 || kpCount < 5) {
+        var needQ = Math.max(0, 30 - total);
+        var needKp = Math.max(0, 5 - kpCount);
+        var note = el('div', 'profile-hint');
+        note.appendChild(el('p', 'profile-hint-title', '画像还在积累数据'));
+        note.appendChild(el('p', 'profile-hint-text',
+          '已做 ' + total + ' 题、覆盖 ' + kpCount + ' 个考点。' +
+          '再做 ' + needQ + ' 题' + (needKp ? '、再覆盖 ' + needKp + ' 个考点' : '') +
+          '，就能分析你的错误原因和薄弱点。'));
+        hostEl.insertBefore(note, hostEl.firstChild);
+      }
+    }
     var host = document.getElementById('profile-content');
     if (!host) {
       return;
@@ -4640,6 +4792,113 @@
     return pool.slice(0, count);
   }
 
+  /* 练习模式与题型 */
+  var practiceMode = 'daily';
+  var practiceTypes = { choice: true, multi: true, judge: true, fill: true, solve: false };
+  var endlessStats = { total: 0, wrong: 0 };
+
+  function typeAllowed(item) {
+    return practiceTypes[item.type] !== false;
+  }
+
+  function pickByTypes(kpId, count) {
+    var pool = [];
+    for (var i = 0; i < data.items.length; i += 1) {
+      var item = data.items[i];
+      if (item.kpId !== kpId || !kpUnlocked(kpId) || !typeAllowed(item)) {
+        continue;
+      }
+      pool.push(item);
+    }
+    for (var j = pool.length - 1; j > 0; j -= 1) {
+      var k = Math.floor(Math.random() * (j + 1));
+      var tmp = pool[j];
+      pool[j] = pool[k];
+      pool[k] = tmp;
+    }
+    return pool.slice(0, count);
+  }
+
+  /* 每日五题：用日期做随机种子，同一天固定、隔天换一批，并避开近期做过的题 */
+  function startDailyFive() {
+    var today = formatDate(new Date());
+    var seed = 0;
+    for (var i = 0; i < today.length; i += 1) {
+      seed = (seed * 31 + today.charCodeAt(i)) >>> 0;
+    }
+    function rand() {
+      seed = (seed * 1664525 + 1013904223) >>> 0;
+      return seed / 4294967296;
+    }
+    var done = {};
+    state.history.slice(-60).forEach(function (h) { done[h.itemId] = true; });
+    var pool = [];
+    for (var j = 0; j < data.items.length; j += 1) {
+      var item = data.items[j];
+      if (!kpUnlocked(item.kpId) || !typeAllowed(item) || done[item.id]) {
+        continue;
+      }
+      pool.push(item);
+    }
+    for (var k = pool.length - 1; k > 0; k -= 1) {
+      var idx = Math.floor(rand() * (k + 1));
+      var t = pool[k];
+      pool[k] = pool[idx];
+      pool[idx] = t;
+    }
+    var batch = pool.slice(0, 5);
+    if (!batch.length) {
+      showToast('当前题型下暂时没有可练的题，试试换一种题型');
+      return;
+    }
+    openQuiz(batch[0].kpId, { items: batch, returnView: 'today' });
+  }
+
+  /* 无尽模式：一次一道，答错率超过 40% 或用户主动停止时结束 */
+  function startEndlessRound() {
+    var pool = [];
+    for (var i = 0; i < data.items.length; i += 1) {
+      var item = data.items[i];
+      if (!kpUnlocked(item.kpId) || !typeAllowed(item)) {
+        continue;
+      }
+      pool.push(item);
+    }
+    if (!pool.length) {
+      showToast('当前题型下没有可练的题');
+      return;
+    }
+    var item = pool[Math.floor(Math.random() * pool.length)];
+    openQuiz(item.kpId, { items: [item], returnView: 'today', endless: true });
+  }
+
+  function cheerFor(right, total) {
+    if (!total) {
+      return '先来一题热热身，别急。';
+    }
+    if (right === total) {
+      return '本轮 ' + total + ' 题全对，很稳！';
+    }
+    var rate = right / total;
+    if (rate >= 0.8) {
+      return '本轮 ' + total + ' 题答对 ' + right + ' 题，状态不错，继续保持。';
+    }
+    if (rate >= 0.6) {
+      return '本轮 ' + total + ' 题答对 ' + right + ' 题，有进步，把错的那几道看一遍解析。';
+    }
+    return '本轮 ' + total + ' 题答对 ' + right + ' 题，先回概念卡补一下，再练一轮会更好。';
+  }
+
+  function endEndless(reason) {
+    var total = endlessStats.total;
+    var right = total - endlessStats.wrong;
+    quiz.endless = false;
+    closeQuiz();
+    switchView('today');
+    showToast(cheerFor(right, total) + (reason ? ' ' + reason : ''));
+    endlessStats = { total: 0, wrong: 0 };
+  }
+
   function pickPracticeItems(kpId, count) {
     return pickItems(kpId, count, []);
   }
@@ -4662,6 +4921,10 @@
 
   function openQuiz(kpId, options) {
     var settings = options || {};
+    if (!kpUnlocked(kpId)) {
+      showToast(kpGrade(kpId) + '暂未开放，本次先开放高一');
+      return;
+    }
     var items = settings.items && settings.items.length ? settings.items : pickPracticeItems(kpId, 2);
 
     if (!items.length) {
@@ -4675,6 +4938,7 @@
     quiz.answered = false;
     quiz.results = [];
     quiz.returnView = settings.returnView || 'cards';
+    quiz.endless = !!settings.endless;
     quiz.masteryRecordId = null;
     quiz.masteryPassed = false;
     quiz.reviewRecordId = settings.reviewRecordId || null;
@@ -4685,6 +4949,10 @@
   }
 
   function closeQuiz() {
+    if (quiz.endless) {
+      endEndless('你主动结束了本轮。');
+      return;
+    }
     quizModal.hidden = true;
     document.body.classList.remove('modal-open');
     quizBody.textContent = '';
@@ -4878,6 +5146,12 @@
       quiz.results = [];
     }
     quiz.results.push({ itemId: item.id, kpId: item.kpId, correct: correct });
+    if (quiz.endless) {
+      endlessStats.total += 1;
+      if (!correct) {
+        endlessStats.wrong += 1;
+      }
+    }
 
     if (correct) {
       renderCorrect(item, resultWrap);
@@ -5035,6 +5309,15 @@
   }
 
   function finishQuiz() {
+    if (quiz.endless) {
+      var rate = endlessStats.total ? endlessStats.wrong / endlessStats.total : 0;
+      if (endlessStats.total >= 5 && rate > 0.4) {
+        endEndless('本轮错误率超过 40%，先停下来补一补。');
+        return;
+      }
+      startEndlessRound();
+      return;
+    }
     /* 掌握度测试保持原来的即时收尾；普通练习先给一张本组小结 */
     if (quiz.masteryRecordId || !quiz.results || !quiz.results.length) {
       completeQuiz();
@@ -5087,6 +5370,7 @@
         : correct === 0
           ? '这组全错了，先回概念卡把定义看明白，再来一组。'
           : '错的那几道看完解析，再练一组巩固一下。'));
+    box.appendChild(el('p', 'quiz-summary-cheer', cheerFor(correct, total)));
 
     var bar = el('div', 'quiz-summary-bar');
     var fill = el('span', 'quiz-summary-fill');
