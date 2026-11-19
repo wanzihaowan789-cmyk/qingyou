@@ -1085,9 +1085,47 @@
     }
   }
 
+  /* 清空本机与云端的学习记录；题库与概念卡不动 */
+  function resetProgress() {
+    if (!window.confirm('确定要清空学习记录吗？本机和云端都会被清空，且不可恢复。')) {
+      return;
+    }
+    state.history = [];
+    state.records = [];
+    state.intervention = null;
+    state.interventionHistory = [];
+    saveState();
+
+    /* 云端也用空数据覆盖，绕过"无数据不上传"的保护 */
+    if (syncEnabled() && syncCode()) {
+      var body = JSON.stringify([{
+        code: syncCode(),
+        state: syncPayload(),
+        updated_at: new Date().toISOString()
+      }]);
+      fetch(SYNC_CONFIG.url + '/' + SYNC_CONFIG.table, {
+        method: 'POST',
+        headers: syncHeaders({
+          'Content-Type': 'application/json',
+          'Prefer': 'resolution=merge-duplicates,return=minimal'
+        }),
+        body: body
+      }).catch(function () {
+        /* 离线时只清本机 */
+      });
+    }
+
+    renderView(currentView);
+    showToast('学习记录已清空（本机与云端）');
+  }
+
   function initSync() {
     checkDeviceBinding();
     var input = document.getElementById('sync-code');
+    var resetBtn = document.getElementById('reset-btn');
+    if (resetBtn) {
+      resetBtn.addEventListener('click', resetProgress);
+    }
     var genBtn = document.getElementById('sync-gen');
     var goBtn = document.getElementById('sync-go');
     var nowBtn = document.getElementById('sync-now');
@@ -2715,6 +2753,7 @@
     if (!host) {
       return;
     }
+    host.textContent = '';
     if (!host.querySelector('.practice-controls')) {
       var bar = el('div', 'practice-controls');
 
@@ -2761,7 +2800,6 @@
 
       host.insertBefore(bar, host.firstChild);
     }
-    host.textContent = '';
     host.classList.remove('today-empty');
 
     host.appendChild(buildStreakCard(buildLearningStatus()));

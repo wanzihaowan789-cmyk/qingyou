@@ -4,11 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="description" content="青柚学伴：先补概念洞，再按遗忘曲线复习。">
-  <meta name="qy-build" content="20261119-2023">
+  <meta name="qy-build" content="20261119-2239">
   <title>青柚学伴</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="style.css?v=20261119-2023">
-  <link rel="preload" href="data.core.js?v=20261119-2023" as="script">
+  <link rel="stylesheet" href="style.css?v=20261119-2239">
+  <link rel="preload" href="data.core.js?v=20261119-2239" as="script">
 
 </head>
 <body>
@@ -64,6 +64,7 @@
         <button id="import-btn" class="btn btn-ghost btn-small" type="button">导入到当前档案</button>
         <button id="import-bank-btn" class="btn btn-ghost btn-small" type="button">导入题库</button>
         <button id="seed-btn" class="btn btn-ghost btn-small" type="button">加载示例数据</button>
+        <button id="reset-btn" class="btn btn-ghost btn-small" type="button">清空学习记录</button>
       </div>
       <input id="import-file" type="file" accept=".json,application/json" hidden>
       <input id="import-bank-file" type="file" accept=".json,application/json" hidden>
@@ -136,8 +137,8 @@
     </div>
   </div>
 
-  <script src="data.core.js?v=20261119-2023"></script>
-  <script src="app.js?v=20261119-2023"></script>
+  <script src="data.core.js?v=20261119-2239"></script>
+  <script src="app.js?v=20261119-2239"></script>
   <script>
     window.addEventListener('load', function () {
       if (window.__QY_APP_LOADED) {
@@ -165,7 +166,7 @@
     /* 生成题在首屏渲染完成后再加载，避免拖慢打开速度 */
     window.addEventListener('load', function () {
       var script = document.createElement('script');
-      script.src = 'data.bulk.js?v=20261119-2023';
+      script.src = 'data.bulk.js?v=20261119-2239';
       script.async = true;
       script.onload = function () {
         if (window.QY_ABSORB_BULK) {
