@@ -1397,7 +1397,7 @@
     renderView(name);
   }
 
-  var TAB_ORDER = ['today', 'cards', 'board', 'profile', 'endless'];
+  var TAB_ORDER = ['today', 'cards', 'board', 'profile'];
 
   function focusTabAt(index) {
     var safe = (index + TAB_ORDER.length) % TAB_ORDER.length;
@@ -2690,7 +2690,7 @@
 
     if (status.todayCount < status.goal) {
       var cta = el('button', 'btn btn-primary streak-cta',
-        '开始今天的 ' + (status.goal - status.todayCount) + ' 题');
+        practiceMode === 'endless' ? '开始无尽模式' : '开始今天的 ' + (status.goal - status.todayCount) + ' 题');
       cta.type = 'button';
       cta.addEventListener('click', startTodayPractice);
       card.appendChild(cta);
@@ -2766,11 +2766,7 @@
         var btn = el('button', 'practice-mode' + (practiceMode === mode.id ? ' is-on' : ''), mode.label);
         btn.type = 'button';
         btn.addEventListener('click', function () {
-          if (mode.id === 'endless') {
-            switchView('endless');
-            return;
-          }
-          practiceMode = 'daily';
+          practiceMode = mode.id;
           renderToday();
         });
         modeRow.appendChild(btn);
@@ -4737,8 +4733,6 @@
       renderBoard();
     } else if (name === 'profile') {
       renderProfile();
-    } else if (name === 'endless') {
-      renderEndless();
     }
   }
 
@@ -5018,7 +5012,7 @@
       return;
     }
     var item = pool[Math.floor(Math.random() * pool.length)];
-    openQuiz(item.kpId, { items: [item], returnView: 'endless', endless: true });
+    openQuiz(item.kpId, { items: [item], returnView: 'today', endless: true });
   }
 
   function cheerFor(right, total) {
@@ -5043,7 +5037,7 @@
     var right = total - endlessStats.wrong;
     quiz.endless = false;
     closeQuiz();
-    switchView('endless');
+    switchView('today');
     showToast(cheerFor(right, total) + (reason ? ' ' + reason : ''));
     endlessStats = { total: 0, wrong: 0 };
   }
