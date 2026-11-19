@@ -3763,3 +3763,31 @@ textarea:focus-visible {
   border-radius: 999px;
   background: linear-gradient(90deg, var(--brand), #4FA08D);
 }
+
+/* ---- 无尽模式独立页 ---- */
+.endless-title {
+  margin: 0 0 8px;
+  font-size: 20px;
+  color: var(--brand);
+}
+
+.endless-tip {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+#endless-content .practice-type-row {
+  margin-bottom: 14px;
+}
+
+#endless-content .btn-primary {
+  padding: 10px 22px;
+}
+
+.endless-stats {
+  margin-top: 12px;
+  color: var(--brand);
+  font-size: 13px;
+  font-weight: 600;
+}

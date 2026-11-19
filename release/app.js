@@ -1397,7 +1397,7 @@
     renderView(name);
   }
 
-  var TAB_ORDER = ['today', 'cards', 'board', 'profile'];
+  var TAB_ORDER = ['today', 'cards', 'board', 'profile', 'endless'];
 
   function focusTabAt(index) {
     var safe = (index + TAB_ORDER.length) % TAB_ORDER.length;
@@ -2766,7 +2766,11 @@
         var btn = el('button', 'practice-mode' + (practiceMode === mode.id ? ' is-on' : ''), mode.label);
         btn.type = 'button';
         btn.addEventListener('click', function () {
-          practiceMode = mode.id;
+          if (mode.id === 'endless') {
+            switchView('endless');
+            return;
+          }
+          practiceMode = 'daily';
           renderToday();
         });
         modeRow.appendChild(btn);
@@ -4733,6 +4737,48 @@
       renderBoard();
     } else if (name === 'profile') {
       renderProfile();
+    } else if (name === 'endless') {
+      renderEndless();
+    }
+  }
+
+  /* 无尽模式的独立界面：与普通练习分开，进来就是刷题入口 */
+  function renderEndless() {
+    var host = document.getElementById('endless-content');
+    if (!host) {
+      return;
+    }
+    host.textContent = '';
+
+    host.appendChild(el('h2', 'endless-title', '无尽模式'));
+    host.appendChild(el('p', 'endless-tip',
+      '一次一道，一直刷。主动停止，或错误率超过 40% 时本轮结束。'));
+
+    var typeRow = el('div', 'practice-type-row');
+    var types = [
+      ['choice', '单选'], ['multi', '多选'], ['judge', '判断'], ['fill', '填空'], ['solve', '解答']
+    ];
+    types.forEach(function (pair) {
+      var chip = el('button', 'practice-type' + (practiceTypes[pair[0]] ? ' is-on' : ''), pair[1]);
+      chip.type = 'button';
+      chip.addEventListener('click', function () {
+        practiceTypes[pair[0]] = !practiceTypes[pair[0]];
+        renderEndless();
+      });
+      typeRow.appendChild(chip);
+    });
+    host.appendChild(typeRow);
+
+    var start = el('button', 'btn btn-primary', endlessStats.total ? '继续刷题' : '开始刷题');
+    start.type = 'button';
+    start.addEventListener('click', startEndlessRound);
+    host.appendChild(start);
+
+    if (endlessStats.total) {
+      var right = endlessStats.total - endlessStats.wrong;
+      var rate = Math.round(endlessStats.wrong / endlessStats.total * 100);
+      host.appendChild(el('p', 'endless-stats',
+        '本轮已答 ' + endlessStats.total + ' 题 · 答对 ' + right + ' 题 · 错误率 ' + rate + '%'));
     }
   }
 
@@ -4972,7 +5018,7 @@
       return;
     }
     var item = pool[Math.floor(Math.random() * pool.length)];
-    openQuiz(item.kpId, { items: [item], returnView: 'today', endless: true });
+    openQuiz(item.kpId, { items: [item], returnView: 'endless', endless: true });
   }
 
   function cheerFor(right, total) {
@@ -4997,7 +5043,7 @@
     var right = total - endlessStats.wrong;
     quiz.endless = false;
     closeQuiz();
-    switchView('today');
+    switchView('endless');
     showToast(cheerFor(right, total) + (reason ? ' ' + reason : ''));
     endlessStats = { total: 0, wrong: 0 };
   }
