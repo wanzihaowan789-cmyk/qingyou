@@ -3747,3 +3747,19 @@ textarea:focus-visible {
   color: var(--faint);
   font-size: 12px;
 }
+
+/* ---- 画像进度条 ---- */
+.profile-hint-bar {
+  height: 6px;
+  margin-top: 10px;
+  border-radius: 999px;
+  background: var(--line-soft);
+  overflow: hidden;
+}
+
+.profile-hint-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--brand), #4FA08D);
+}

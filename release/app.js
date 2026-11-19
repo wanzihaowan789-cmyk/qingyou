@@ -4526,6 +4526,11 @@
           '已做 ' + total + ' 题、覆盖 ' + kpCount + ' 个考点。' +
           '再做 ' + needQ + ' 题' + (needKp ? '、再覆盖 ' + needKp + ' 个考点' : '') +
           '，就能分析你的错误原因和薄弱点。'));
+        var bar = el('div', 'profile-hint-bar');
+        var fill = el('span', 'profile-hint-fill');
+        fill.style.width = Math.min(100, Math.round(total / 30 * 100)) + '%';
+        bar.appendChild(fill);
+        note.appendChild(bar);
         hostEl.insertBefore(note, hostEl.firstChild);
       }
     }
@@ -4913,10 +4918,12 @@
 
   /* 无尽模式：一次一道，答错率超过 40% 或用户主动停止时结束 */
   function startEndlessRound() {
+    var done = {};
+    state.history.slice(-40).forEach(function (h) { done[h.itemId] = true; });
     var pool = [];
     for (var i = 0; i < data.items.length; i += 1) {
       var item = data.items[i];
-      if (!kpUnlocked(item.kpId) || !typeAllowed(item)) {
+      if (!kpUnlocked(item.kpId) || !typeAllowed(item) || done[item.id]) {
         continue;
       }
       pool.push(item);
