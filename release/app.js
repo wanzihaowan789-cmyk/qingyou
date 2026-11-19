@@ -1121,6 +1121,22 @@
 
   function initSync() {
     checkDeviceBinding();
+    var handle = document.getElementById('quiz-handle');
+    if (handle) {
+      var toggleHalf = function () {
+        var panel = document.querySelector('#quiz-modal .quiz-panel');
+        if (panel) {
+          panel.classList.toggle('is-half');
+        }
+      };
+      handle.addEventListener('click', toggleHalf);
+      handle.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          toggleHalf();
+        }
+      });
+    }
     var input = document.getElementById('sync-code');
     var resetBtn = document.getElementById('reset-btn');
     if (resetBtn) {
@@ -5089,6 +5105,10 @@
 
     quizModal.hidden = false;
     document.body.classList.add('modal-open');
+    var quizPanel = quizModal.querySelector('.quiz-panel');
+    if (quizPanel) {
+      quizPanel.classList.remove('is-half');
+    }
     renderQuestion();
   }
 

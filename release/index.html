@@ -4,11 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="description" content="青柚学伴：先补概念洞，再按遗忘曲线复习。">
-  <meta name="qy-build" content="20261119-2325">
+  <meta name="qy-build" content="20261119-2341">
   <title>青柚学伴</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="style.css?v=20261119-2325">
-  <link rel="preload" href="data.core.js?v=20261119-2325" as="script">
+  <link rel="stylesheet" href="style.css?v=20261119-2341">
+  <link rel="preload" href="data.core.js?v=20261119-2341" as="script">
 
 </head>
 <body>
@@ -107,6 +107,8 @@
 
   <div id="quiz-modal" class="quiz-modal" hidden>
     <div class="quiz-panel" role="dialog" aria-modal="true" aria-labelledby="quiz-title">
+      <div class="quiz-handle" id="quiz-handle" role="button" tabindex="0"
+        aria-label="收起或展开答题面板"></div>
       <div class="quiz-head">
         <div>
           <p id="quiz-title" class="quiz-title"></p>
@@ -137,8 +139,8 @@
     </div>
   </div>
 
-  <script src="data.core.js?v=20261119-2325"></script>
-  <script src="app.js?v=20261119-2325"></script>
+  <script src="data.core.js?v=20261119-2341"></script>
+  <script src="app.js?v=20261119-2341"></script>
   <script>
     window.addEventListener('load', function () {
       if (window.__QY_APP_LOADED) {
@@ -166,7 +168,7 @@
     /* 生成题在首屏渲染完成后再加载，避免拖慢打开速度 */
     window.addEventListener('load', function () {
       var script = document.createElement('script');
-      script.src = 'data.bulk.js?v=20261119-2325';
+      script.src = 'data.bulk.js?v=20261119-2341';
       script.async = true;
       script.onload = function () {
         if (window.QY_ABSORB_BULK) {

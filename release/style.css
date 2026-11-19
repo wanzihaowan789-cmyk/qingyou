@@ -326,12 +326,30 @@ body {
 
 .quiz-panel {
   width: 100%;
-  max-height: 92vh;
+  max-width: 720px;
+  height: 100vh;
+  height: 100dvh;
   overflow-y: auto;
   background: var(--card);
-  border-radius: 16px 16px 0 0;
-  padding: 16px 16px 24px;
+  border-radius: 0;
+  padding: 10px 16px 24px;
   box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.18);
+  transition: height 0.22s ease;
+}
+
+/* 收成半屏：保留原来抽屉式观感 */
+.quiz-panel.is-half {
+  height: 62vh;
+  border-radius: 16px 16px 0 0;
+}
+
+.quiz-handle {
+  width: 44px;
+  height: 4px;
+  margin: 4px auto 12px;
+  border-radius: 999px;
+  background: var(--line);
+  cursor: pointer;
 }
 
 .quiz-head {
@@ -2851,18 +2869,12 @@ textarea:focus-visible {
 
 @media (max-width: 759px) {
   .quiz-panel {
-    border-radius: 20px 20px 0 0;
+    border-radius: 0;
     padding-top: 10px;
   }
 
-  .quiz-panel::before {
-    content: "";
-    display: block;
-    width: 36px;
-    height: 4px;
-    margin: 0 auto 10px;
-    border-radius: 999px;
-    background: #E9E2D1;
+  .quiz-panel.is-half {
+    border-radius: 20px 20px 0 0;
   }
 }
 
